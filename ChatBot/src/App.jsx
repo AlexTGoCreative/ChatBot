@@ -43,7 +43,7 @@ const App = () => {
       <button
         onClick={() => setShowChatbot((prev) => !prev)}
         id="chatbot-toggler"
-        className={showChatbot ? "" : "has-hover"} 
+        className={showChatbot ? "" : "has-hover"}
       >
         <span className="material-symbols-rounded">mode_comment</span>
         <span className="material-symbols-rounded">close</span>
@@ -54,12 +54,21 @@ const App = () => {
         <div className="chat-header">
           <div className="header-info">
             <ChatbotIcon />
-            <h2 className="logo-text">Chatbot</h2>
+            <h2 className="logo-text">Benny</h2>
           </div>
-          <button onClick={() => setShowChatbot((prev) => !prev)} className="material-symbols-rounded">
-            keyboard_arrow_down
-          </button>
+
+          <div className="header-buttons">
+            {/*Refresh Button */}
+            <button onClick={() => setChatHistory([])} className="material-symbols-rounded">
+              refresh
+            </button>
+            {/*Collapse Button */}
+            <button onClick={() => setShowChatbot((prev) => !prev)} className="material-symbols-rounded">
+              keyboard_arrow_down
+            </button>
+          </div>
         </div>
+
 
         {/* Chatbot Body */}
         <div ref={chatBodyRef} className="chat-body">

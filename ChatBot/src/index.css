@@ -100,6 +100,7 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
+  user-select: none;
 }
 
 .header-info svg {
@@ -110,6 +111,7 @@ body {
   fill: #fff;
   background: #0A0F1E;
   border-radius: 50%;
+  user-select: none;
 }
 
 .header-info .logo-text {
@@ -117,6 +119,7 @@ body {
   font-weight: 600;
   font-size: 1rem;
   letter-spacing: 0.02rem;
+  user-select: none;
 }
 
 .chat-header button {
@@ -131,6 +134,7 @@ body {
   border-radius: 50%;
   background: none;
   transition: 0.2s ease;
+  user-select: none;
 }
 
 .chat-header button:hover {
@@ -296,4 +300,13 @@ body {
   .chat-footer {
     padding: 6px 10px;
   }
+}
+.header-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.header-buttons button {
+  margin: 0; 
 }
