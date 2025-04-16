@@ -11,28 +11,32 @@ const App = () => {
 
   const generateBotResponse = async (history) => {
     const updateHistory = (text, isError = false) => {
-      setChatHistory((prev) => [...prev.filter((msg) => msg.text != "Thinking..."), { role: "model", text, isError }]);
+      setChatHistory((prev) => [
+        ...prev.filter((msg) => msg.text !== "Thinking..."),
+        { role: "model", text, isError },
+      ]);
     };
+  
 
-    history = history.map(({ role, text }) => ({ role, parts: [{ text }] }));
-
+    const lastUserMessage = history.findLast((msg) => msg.role === "user");
+  
     const requestOptions = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: history }),
+      body: JSON.stringify({ question: lastUserMessage.text }),
     };
-
+  
     try {
       const response = await fetch(import.meta.env.VITE_API_URL, requestOptions);
       const data = await response.json();
-      if (!response.ok) throw new Error(data?.error.message || "Something went wrong!");
-
-      const apiResponseText = data.candidates[0].content.parts[0].text.replace(/\*\*(.*?)\*\*/g, "$1").trim();
-      updateHistory(apiResponseText);
+      if (!response.ok) throw new Error(data?.error || "Something went wrong!");
+  
+      updateHistory(data.answer.trim());
     } catch (error) {
       updateHistory(error.message, true);
     }
   };
+  
 
   useEffect(() => {
     chatBodyRef.current.scrollTo({ top: chatBodyRef.current.scrollHeight, behavior: "smooth" });
