@@ -45,8 +45,8 @@ In this project, the OPSWAT docs are vectorized and used to provide context to G
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/chatbot-gemini-opswat.git
-cd chatbot-gemini-opswat
+git clone https://github.com/AlexTGoCreative/ChatBot.git
+cd .\ChatBot\
 ```
 
 ---
