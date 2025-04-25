@@ -58,15 +58,31 @@ def ask(payload: ChatPayload):
     model = genai.GenerativeModel("models/gemini-2.0-flash")
 
     doc_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-    combined_context = f"{latest_scan_context['content']}\n\n{doc_context}"
+    scan_context = latest_scan_context["content"]
+
+    general_prompt = f"""
+You are a helpful and knowledgeable chatbot representing OPSWAT, a cybersecurity company.
+Answer the user's question to the best of your knowledge. If it's about security, provide detailed, accurate answers.
+If it's a general question from another field, do your best to help anyway.
+
+QUESTION: {last_question}
+"""
+
+    if not relevant_docs:
+        print("No relevant documents found. Generating general response.")
+        response = model.generate_content(general_prompt)
+        return {"answer": response.text}
 
     prompt = f"""
 You are a helpful assistant for cybersecurity documentation.
-Use the CONTEXT below to answer the user's question.
-Only use the information provided. If you don't know the answer, say so.
+Use ONLY the information provided in the context below to answer the user's question.
+If the answer is not present in the context, say: "The answer is not available in the provided documentation and scan data."
+Do not use outside knowledge unless the context is insufficient.
 
 --- CONTEXT START ---
-{combined_context}
+{scan_context}
+
+{doc_context}
 --- CONTEXT END ---
 
 QUESTION: {last_question}
@@ -75,4 +91,9 @@ Answer clearly using technical language if needed.
 """
 
     response = model.generate_content(prompt)
+
+    if "The answer is not available in the provided documentation and scan data." in response.text:
+        print("Fallback triggered. Generating general response.")
+        response = model.generate_content(general_prompt)
+
     return {"answer": response.text}
