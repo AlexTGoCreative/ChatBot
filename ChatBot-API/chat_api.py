@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from typing import List, Optional
 import os
 import google.generativeai as genai
 from langchain_community.vectorstores import Chroma
@@ -14,7 +15,6 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 DB_DIR = "chroma_db"
 DOC_PATH = "scraped_html/hash_lookup.txt"
-
 loader = TextLoader(DOC_PATH, encoding="utf-8")
 documents = loader.load()
 splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=300)
@@ -23,7 +23,6 @@ embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 vectordb = Chroma.from_documents(chunks, embedding=embedding_model, persist_directory=DB_DIR)
 
 app = FastAPI()
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,52 +31,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class Message(BaseModel):
-    question: str
+latest_scan_context = {"content": ""}
+
+class ChatMessage(BaseModel):
+    role: str
+    text: str
+
+class ChatPayload(BaseModel):
+    chat_history: List[ChatMessage]
+    scan_results: Optional[dict] = None
 
 @app.post("/ask")
-def ask(message: Message):
-    retriever = vectordb.as_retriever()
-    relevant_docs = retriever.invoke(message.question)
+def ask(payload: ChatPayload):
+    global latest_scan_context
 
+    if payload.scan_results:
+        scan_summary = "\n".join([f"{k}: {v}" for k, v in payload.scan_results.items()])
+        latest_scan_context["content"] = f"Scan results:\n{scan_summary}"
+
+    last_question = next((msg.text for msg in reversed(payload.chat_history) if msg.role == "user"), None)
+    if not last_question:
+        return {"answer": "No question found in chat history."}
+
+    retriever = vectordb.as_retriever()
+    relevant_docs = retriever.invoke(last_question)
     model = genai.GenerativeModel("models/gemini-2.0-flash")
 
-    def general_prompt(question):
-        return f"""
-You are a helpful and knowledgeable chatbot representing OPSWAT, a cybersecurity company.
-Answer the user's question to the best of your knowledge. If it's about security, provide detailed, accurate answers.
-If it's a general question from another field, do your best to help anyway.
-
-QUESTION: {question}
-"""
-
-    if not relevant_docs:
-        print("No relevant documents found. Generating general OPSWAT-style response.")
-        response = model.generate_content(general_prompt(message.question))
-        return {"answer": response.text}
-
-    print(f"Found {len(relevant_docs)} relevant docs.")
-    context = "\n\n".join([doc.page_content for doc in relevant_docs])
+    doc_context = "\n\n".join([doc.page_content for doc in relevant_docs])
+    combined_context = f"{latest_scan_context['content']}\n\n{doc_context}"
 
     prompt = f"""
 You are a helpful assistant for cybersecurity documentation.
-Use ONLY the information provided in the context below to answer the user's question.
-If the answer is not present in the context, say "The answer is not available in the provided documentation."
-Do not use outside knowledge.
+Use the CONTEXT below to answer the user's question.
+Only use the information provided. If you don't know the answer, say so.
 
---- DOCUMENTATION CONTEXT START ---
-{context}
---- DOCUMENTATION CONTEXT END ---
+--- CONTEXT START ---
+{combined_context}
+--- CONTEXT END ---
 
-QUESTION: {message.question}
+QUESTION: {last_question}
 
 Answer clearly using technical language if needed.
 """
 
     response = model.generate_content(prompt)
-
-    if response.text.strip() == "The answer is not available in the provided documentation.":
-        print("Fallback triggered. Using general OPSWAT-style response.")
-        response = model.generate_content(general_prompt(message.question))
-
     return {"answer": response.text}
