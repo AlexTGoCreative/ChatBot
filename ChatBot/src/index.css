@@ -1,14 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+/* Reset optional, Tailwind are deja unul */
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: "Inter", sans-serif;
+  @apply m-0 p-0 box-border;
 }
 
+/* Aplicăm font și stiluri pe body */
 body {
-  width: 100%;
-  min-height: 100vh;
-  background: #0A0F1E;
+  @apply w-full min-h-screen bg-[#0A0F1E] font-sans;
 }

@@ -1,0 +1,211 @@
+{
+  "last_sandbox_id": [
+    {
+      "sandbox_id": "680b74a0311bdbc43f801b1c",
+      "system": "filescanio",
+      "date": "2025-04-25T11:40:17.177Z"
+    }
+  ],
+  "votes": {
+    "down": 0,
+    "up": 0
+  },
+  "last_start_time": "2025-04-28T12:05:27.952Z",
+  "scan_result_history_length": 4,
+  "file_id": "bzI1MDQyOHRFb0ZIT3JiVU8",
+  "data_id": "bzI1MDQyOHRFb0ZIT3JiVU9zM1JZUU9ldGdH_mdaas",
+  "sanitized": {
+    "result": "Allowed",
+    "file_path": "https://s3.eu-central-1.amazonaws.com/sanitized.files.metadefender.com-eucentral1/dt%3D250428/tEoFHOrbUO_mdaas.sanitized?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIATSJZ247PLTF3TTUW%2F20250428%2Feu-central-1%2Fs3%2Faws4_request&X-Amz-Date=20250428T145137Z&X-Amz-Expires=604800&X-Amz-Signature=8c7071a99fd0f16ee745cb95aaa1cfc7c2a430adc63de72e1407b92c64c23897&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3DAdobe%2520Scan%252024%2520apr%25202025_sanitized_by_OPSWAT_Metadefender.pdf",
+    "progress_percentage": 100
+  },
+  "process_info": {
+    "progress_percentage": 100,
+    "result": "Allowed",
+    "post_processing": {
+      "converted_destination": "Adobe Scan 24 apr 2025_sanitized_by_OPSWAT_Metadefender.pdf",
+      "converted_to": "pdf",
+      "sanitization_details": {
+        "description": "File is sanitized successfully and its structure is validated.",
+        "details": [
+          {
+            "action": "sanitized",
+            "count": 1,
+            "object_name": "image",
+            "object_sha256": [
+              "da8abc7967530f688eded5797bfeb97a49368a65d409c15d569164740df79abd"
+            ]
+          }
+        ]
+      },
+      "actions_ran": "Sanitized",
+      "actions_failed": "",
+      "copy_move_destination": ""
+    },
+    "verdicts": [
+      "No Threat Detected"
+    ],
+    "profile": "multiscan_sanitize",
+    "blocked_reason": "",
+    "blocked_reasons": []
+  },
+  "scan_results": {
+    "scan_details": {
+      "AhnLab": {
+        "scan_time": 7,
+        "def_time": "2025-04-28T03:43:22.202Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Avira": {
+        "scan_time": 14,
+        "def_time": "2025-04-28T08:53:32.176Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Bitdefender": {
+        "scan_time": 5,
+        "def_time": "2025-04-28T04:07:21.571Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Bkav Pro": {
+        "scan_time": 221,
+        "def_time": "2025-04-28T03:42:46.305Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "ClamAV": {
+        "scan_time": 31,
+        "def_time": "2025-04-27T15:25:10.026Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "CMC": {
+        "scan_time": 2,
+        "def_time": "2025-04-28T03:53:52.687Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "CrowdStrike Falcon ML": {
+        "scan_time": 313,
+        "def_time": "2025-04-28T03:55:00.672Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Emsisoft": {
+        "scan_time": 15,
+        "def_time": "2025-04-28T04:05:37.188Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "IKARUS": {
+        "scan_result_i": 3,
+        "def_time": "2025-04-28T08:50:16.000Z",
+        "threat_found": ""
+      },
+      "K7": {
+        "scan_time": 2,
+        "def_time": "2025-04-28T03:55:20.886Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Lionic": {
+        "scan_time": 13,
+        "def_time": "2025-04-28T04:08:37.485Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "McAfee": {
+        "scan_time": 59,
+        "def_time": "2025-04-28T03:35:18.640Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "NANOAV": {
+        "def_time": "2025-04-28T04:06:18.723Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Quick Heal": {
+        "scan_time": 10,
+        "def_time": "2025-04-28T03:42:32.881Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "RocketCyber": {
+        "scan_result_i": 23,
+        "scan_time": 2,
+        "def_time": "2025-04-28T04:07:17.490Z",
+        "threat_found": ""
+      },
+      "TACHYON": {
+        "scan_time": 8,
+        "def_time": "2025-04-27T15:21:46.983Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Varist": {
+        "scan_time": 146,
+        "def_time": "2025-04-28T08:53:04.212Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Webroot SMD": {
+        "scan_time": 4,
+        "def_time": "2025-04-28T04:07:16.945Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Xvirus Anti-Malware": {
+        "scan_time": 32,
+        "def_time": "2025-04-28T03:42:46.879Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Zillya!": {
+        "scan_time": 80,
+        "def_time": "2025-04-28T07:09:25.951Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Vir.IT eXplorer": {
+        "def_time": "2025-04-28T03:42:47.439Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      },
+      "Vir.IT ML": {
+        "def_time": "2025-04-28T04:05:33.712Z",
+        "scan_result_i": 0,
+        "threat_found": ""
+      }
+    },
+    "scan_all_result_i": 0,
+    "current_av_result_i": 0,
+    "start_time": "2025-04-28T12:05:27.952Z",
+    "total_time": 313,
+    "total_avs": 22,
+    "total_detected_avs": 0,
+    "progress_percentage": 100,
+    "scan_all_result_a": "No Threat Detected",
+    "current_av_result_a": "No Threat Detected"
+  },
+  "file_info": {
+    "file_size": 326081,
+    "upload_timestamp": "2025-04-28T12:05:26.682Z",
+    "md5": "8043F5295DE71027C1F592A2A0D7AC5A",
+    "sha1": "4BBF0303E5E889A4D226F9416E8DC37FCBD55166",
+    "sha256": "8AA685095684D7B46A406DBAC095F3C9A84ADA2FAA78859E2E34E335C72D69D2",
+    "file_type_category": "P",
+    "file_type_description": "Adobe Portable Document Format",
+    "file_type_extension": "pdf",
+    "display_name": "Adobe Scan 24 apr 2025.pdf"
+  },
+  "share_file": 1,
+  "private_processing": 0,
+  "rest_version": "4",
+  "additional_info": [
+    "sandbox"
+  ],
+  "stored": true
+}
