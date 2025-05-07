@@ -1,11 +1,38 @@
 .url-form {
-  @apply flex justify-center items-center gap-0 mt-20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 80px;
+  gap: 0;
 }
 
 .url-form input {
-  @apply w-[500px] px-4 py-3 text-[0.95rem] border border-gray-300 rounded-l-lg outline-none transition duration-200 ease-in-out focus:border-blue-600 focus:shadow-md;
+  width: 500px;
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 8px 0 0 8px;
+  outline: none;
+  transition: border 0.2s ease;
+}
+
+.url-form input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
 .url-form button {
-  @apply bg-blue-600 text-white font-medium px-5 py-3 text-[0.95rem] border-none cursor-pointer rounded-r-lg transition duration-200 ease-in-out hover:bg-blue-800;
+  background-color: #2563eb;
+  color: white;
+  font-weight: 500;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  border-radius: 0 8px 8px 0;
+  transition: background-color 0.2s ease;
+}
+
+.url-form button:hover {
+  background-color: #1e40af;
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import useSWR, { useSWRConfig } from "swr";
-import axios from "axios";
+import useSWR, { useSWRConfig } from 'swr';
+import axios from 'axios';
 
 const MD_API_KEY = import.meta.env.VITE_METADEFENDER_API_KEY;
 
@@ -13,44 +13,78 @@ const fetcher = (url) =>
     })
     .then((res) => res.data);
 
-export function useFileScan(hash) {
+export function useFileScan(scanSource) {
   const { cache } = useSWRConfig();
   const [data, setData] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [hash, setHash] = useState(null);
+  const [scanError, setScanError] = useState(null);
 
   const url = hash ? `http://localhost:5000/scan/${hash}` : null;
-
   const cachedData = url ? cache.get(url) : null;
-  const isCachedComplete = cachedData?.sanitized?.progress_percentage === 100;
+  const isCachedComplete = cachedData?.sanitized?.progress_percentage === 100 || false;
 
   useEffect(() => {
     if (isCachedComplete) {
+      console.log('Cached Data:', cachedData);
       setData(cachedData);
       setIsComplete(true);
     }
   }, [url, isCachedComplete, cachedData]);
 
   const { error, mutate } = useSWR(
-    !isCachedComplete ? url : null, 
+    !isCachedComplete && url ? url : null,
     fetcher,
     {
-      refreshInterval: data?.sanitized?.progress_percentage === 100 ? 0 : 5000,
+      refreshInterval: data?.scan_summary?.progress_percentage === 100 ? 0 : 5000,
       revalidateOnFocus: false,
       onSuccess: (newData) => {
+        console.log('New Data:', newData);
         setData(newData);
-        if (newData?.sanitized?.progress_percentage === 100) {
+        if (newData?.scan_summary?.progress_percentage === 100) {
           setIsComplete(true);
         }
+      },
+      onError: (err) => {
+        console.error('SWR Error:', err);
       },
     }
   );
 
-  console.log(data);
+  const startScan = async () => {
+    try {
+      let response;
+      if (scanSource.type === 'file') {
+        const formData = new FormData();
+        formData.append('file', scanSource.value);
+        response = await axios.post('http://localhost:5000/scan-file', formData, {
+          headers: { apikey: MD_API_KEY },
+        });
+      } else if (scanSource.type === 'url') {
+        response = await axios.post('http://localhost:5000/scan-url', { url: scanSource.value }, {
+          headers: { apikey: MD_API_KEY },
+        });
+      }
+      const { hash } = response.data;
+      console.log('Response Data:', response.data);
+      console.log('Hash:', hash);
+      setHash(hash);
+    } catch (err) {
+      console.error('Error during file/url scan:', err);
+      setScanError(err);
+    }
+  };
+
+  useEffect(() => {
+    if (scanSource && scanSource.value) {
+      startScan();
+    }
+  }, [scanSource]);
 
   return {
     data,
-    error,
-    isLoading: !data && !error,
+    error: error || scanError,
+    isLoading: !data && !error && !scanError,
     isComplete,
     mutate,
   };

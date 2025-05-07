@@ -17,14 +17,20 @@ const Chatbot = ({ fileScanData }) => {
       ]);
     };
 
+    console.log("date scanate:    ",fileScanData);
+
     const requestOptions = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_history: history,
-        scan_results: fileScanData?.scan_results || null,
+        scan_results: fileScanData?.scan_results || null,  
+        file_info: fileScanData?.file_info || null,  
+        process_info: fileScanData?.process_info || null,  
+        sanitized_info: fileScanData?.sanitized || null,  
       }),
     };
+    
 
     try {
       const response = await fetch(import.meta.env.VITE_API_URL, requestOptions);
