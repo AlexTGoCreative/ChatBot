@@ -4,15 +4,6 @@ import axios from 'axios';
 
 const MD_API_KEY = import.meta.env.VITE_METADEFENDER_API_KEY;
 
-const fetcher = (url) =>
-  axios
-    .get(url, {
-      headers: {
-        apikey: MD_API_KEY,
-      },
-    })
-    .then((res) => res.data);
-
 export function useFileScan(scanSource) {
   const { cache } = useSWRConfig();
   const [data, setData] = useState(null);
@@ -21,12 +12,14 @@ export function useFileScan(scanSource) {
   const [scanError, setScanError] = useState(null);
 
   const url = hash ? `http://localhost:5000/scan/${hash}` : null;
+  // const hashTest = "bzI1MDUwN2VsOHhsOV9mNm5MQWdXYzdLZTFP_mdaas";
+  // const url = `http://localhost:5000/scan/${hashTest}`;
   const cachedData = url ? cache.get(url) : null;
-  const isCachedComplete = cachedData?.sanitized?.progress_percentage === 100 || false;
+  const isCachedComplete = cachedData?.scan_results?.progress_percentage === 100 || false;
 
   useEffect(() => {
     if (isCachedComplete) {
-      console.log('Cached Data:', cachedData);
+      //console.log('Cached Data:', cachedData);
       setData(cachedData);
       setIsComplete(true);
     }
@@ -34,14 +27,14 @@ export function useFileScan(scanSource) {
 
   const { error, mutate } = useSWR(
     !isCachedComplete && url ? url : null,
-    fetcher,
     {
-      refreshInterval: data?.scan_summary?.progress_percentage === 100 ? 0 : 5000,
+      refreshInterval: data?.scan_results?.progress_percentage === 100 ? 0 : 5000,
       revalidateOnFocus: false,
       onSuccess: (newData) => {
         console.log('New Data:', newData);
         setData(newData);
-        if (newData?.scan_summary?.progress_percentage === 100) {
+        if (newData?.scan_results?.progress_percentage === 100) {
+          console.log("STOP GET");
           setIsComplete(true);
         }
       },
@@ -49,7 +42,7 @@ export function useFileScan(scanSource) {
         console.error('SWR Error:', err);
       },
     }
-  );
+  );  
 
   const startScan = async () => {
     try {
