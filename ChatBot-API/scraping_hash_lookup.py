@@ -19,11 +19,9 @@ async def scrape_single_page(page, url):
         await page.goto(url, timeout=60000)
         await page.wait_for_timeout(3000)
 
-
         await page.evaluate("document.querySelector('a[name=\"hash-lookup\"]')?.scrollIntoView()")
         await page.wait_for_timeout(1000)
 
-    
         html = await page.content()
         with open(f"{output_dir}/hash_lookup.html", "w", encoding="utf-8") as f:
             f.write(html)
@@ -31,10 +29,23 @@ async def scrape_single_page(page, url):
         full_text = await page.locator("body").inner_text()
         cleaned_text = clean_text(full_text)
 
-        with open(f"{output_dir}/hash_lookup.txt", "w", encoding="utf-8") as f:
-            f.write(cleaned_text)
+        
+        explanations_path = r"C:\Users\OWNER\Desktop\OPSWAT\chat\ChatBot\ChatBot-API\scraped_html\explanations.txt"
+        explanations_content = ""
+        if os.path.exists(explanations_path):
+            with open(explanations_path, "r", encoding="utf-8") as f:
+                explanations_content = f.read().strip()
 
-        print("Pagina a fost salvată și curățată.")
+       
+        combined_text = cleaned_text
+        if explanations_content:
+            combined_text += "\n\n" + explanations_content
+
+    
+        with open(f"{output_dir}/hash_lookup.txt", "w", encoding="utf-8") as f:
+            f.write(combined_text)
+
+        print("Pagina a fost salvată, curățată și completată cu explanations.txt.")
 
     except Exception as e:
         print(f"Eroare la {url}: {e}")
