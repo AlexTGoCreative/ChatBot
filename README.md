@@ -1,7 +1,7 @@
 
 # 🤖 Gemini ChatBot with OPSWAT Documentation (RAG-Powered)
 
-A full-stack chatbot built with **Vite + React (JavaScript)** and a **FastAPI (Python)** backend.  
+A full-stack chatbot built with **Vite + React (JavaScript)** and a **Python (FastAPI)** backend and **Node.js** backend.  
 The chatbot uses **Gemini 1.5 API** and a **Retrieval-Augmented Generation (RAG)** pipeline to answer technical questions based on **OPSWAT documentation**.
 
 ---
@@ -11,9 +11,11 @@ The chatbot uses **Gemini 1.5 API** and a **Retrieval-Augmented Generation (RAG)
 - 🔍 **RAG Pipeline**: Combines vector search with LLM generation for accurate, context-aware answers.
 - 📄 **Web Scraping**: Dynamically fetches OPSWAT documentation.
 - 💬 **Chat Interface**: Clean and responsive UI powered by React and Vite.
-- ⚡ **FastAPI Backend**: Handles vector search, Gemini API calls, and document indexing.
+- ⚡ **FastAPI Python Backend**: Handles certain parts of the application, such as scraping and embedding vector search.
+- ⚡ **Node.js Backend**: Manages requests and interactions with the Gemini API, as well as hash-based scan data context.
 - 🔑 **Gemini 1.5 Integration**: Uses Google's LLM to interpret queries and generate responses.
-- 🧠 **Hash-based Context**: Allows users to enter a **hash** to retrieve specific scan data, which is then used as context for generating more accurate answers.
+- 🧠 **Direct File Scan (Drag and Drop)**: Users can now upload files directly via drag-and-drop or input a URL for scanning.
+- 🌐 **URL Scan**: A text box allows users to enter a URL that will be scanned for relevant content.
 
 ---
 
@@ -26,7 +28,7 @@ The chatbot uses **Gemini 1.5 API** and a **Retrieval-Augmented Generation (RAG)
 
 In this project, the OPSWAT docs are vectorized and used to provide context to Gemini.
 
-Additionally, users can provide a **hash** related to a scan, and the chatbot will use the scan results as part of the context for generating accurate responses.
+Additionally, users can **upload a file via drag and drop** or **enter a URL** to retrieve and scan its content for more context in the chatbot's responses.
 
 ---
 
@@ -35,7 +37,8 @@ Additionally, users can provide a **hash** related to a scan, and the chatbot wi
 | Component       | Stack                    |
 |----------------|--------------------------|
 | Frontend       | Vite + React (JavaScript)|
-| Backend        | FastAPI (Python 3.10)     |
+| Backend (Python)| FastAPI (Python 3.10)     |
+| Backend (Node.js)| Node.js (with Express) and Python(FASTAPI) |
 | LLM API        | Gemini 1.5                |
 | Vector Search  | FAISS (or similar)        |
 | Embeddings     | Google / OpenAI           |
@@ -68,7 +71,7 @@ npm run dev
 
 ---
 
-### 3. Backend Setup (Python + FastAPI)
+### 3. Backend Setup (Python - FastAPI)
 
 > Make sure you have **Python 3.10** installed.
 
@@ -97,17 +100,33 @@ This script:
 
 ---
 
-### 5. Start Backend Server
+### 5. Start Backend (FastAPI Python)
 
 ```bash
-uvicorn main:app --reload --port 5000
+uvicorn chat_api:app --reload 
 ```
 
-This starts the backend on port 5000, allowing it to process hash-based scan data and provide relevant responses for the chatbot.
+This starts the Python backend
 
 ---
 
-### 6. Start Frontend
+### 6. Backend Setup (Node.js)
+
+```bash
+npm install
+```
+
+Then start the Node.js backend with:
+
+```bash
+npm start
+```
+
+This will start the Node.js backend, which handles the Gemini API interactions and scan data lookups.
+
+---
+
+### 7. Start Frontend
 
 ```bash
 npm run dev
@@ -117,30 +136,23 @@ Now you can open the chatbot in your browser and start asking technical question
 
 ---
 
-## 🧑‍💻 Using Hash for Context
+## 🧑‍💻 New Scan Features
 
-In addition to asking general technical questions, you can now **enter a hash** associated with a scan. This hash will retrieve relevant scan data (e.g., file name, scan status, scan date) and use it as additional context for the chatbot's responses.
+Users can now scan files or URLs in the chatbot:
 
-### **Frontend - Entering Hash**  
-There is now an input box in the chatbot interface where you can enter a **hash**. Once entered, the chatbot will fetch the scan data associated with that hash and provide more tailored responses.
+### **Drag-and-Drop File Upload**  
+There is now a drag-and-drop area in the chat interface where users can upload files directly for scanning.
 
-### **Backend - Hash Lookup**  
-When a hash is provided, the backend (FastAPI) will look up the scan results and pass them as context to the Gemini API to enhance the quality and relevance of the responses. The hash can be submitted via a simple **GET** request:
+### **URL Scan**  
+A text box allows users to input a URL to be scanned for relevant information.
 
-```bash
-GET http://localhost:5000/api/scan/{hash}
-```
-
-This will return the associated scan data, which will be stored temporarily for generating the response.
-
-### **Chat with Context**  
-Once the hash is provided, every query to the chatbot will include that hash as part of the request. This allows the chatbot to provide more accurate and context-aware answers based on the scan results.
+Once a file is uploaded or a URL is provided, the chatbot will process the content and generate accurate, context-aware responses.
 
 ---
 
 ## 🔐 Environment Variables
 
-In **ChatBot-API/chat_api.py**:
+In **ChatBot-API/chat_api.py** (Node.js backend):
 
 ```python
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"

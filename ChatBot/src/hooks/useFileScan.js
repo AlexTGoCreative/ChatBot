@@ -47,26 +47,30 @@ export function useFileScan(scanSource) {
   const startScan = async () => {
     try {
       let response;
+  
       if (scanSource.type === 'file') {
         const formData = new FormData();
         formData.append('file', scanSource.value);
         response = await axios.post('http://localhost:5000/scan-file', formData, {
           headers: { apikey: MD_API_KEY },
         });
+        const { hash } = response.data;
+        setHash(hash);
       } else if (scanSource.type === 'url') {
-        response = await axios.post('http://localhost:5000/scan-url', { url: scanSource.value }, {
+        const encodedUrl = encodeURIComponent(scanSource.value);
+        console.log(encodedUrl)
+        const response = await axios.get(`http://localhost:5000/scan-url-direct?encodedUrl=${encodedUrl}`, {
           headers: { apikey: MD_API_KEY },
         });
+        setData(response.data);
+        setIsComplete(true);
       }
-      const { hash } = response.data;
-      console.log('Response Data:', response.data);
-      console.log('Hash:', hash);
-      setHash(hash);
     } catch (err) {
       console.error('Error during file/url scan:', err);
       setScanError(err);
     }
   };
+  
 
   useEffect(() => {
     if (scanSource && scanSource.value) {
