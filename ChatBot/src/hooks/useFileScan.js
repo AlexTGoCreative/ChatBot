@@ -10,16 +10,14 @@ export function useFileScan(scanSource) {
   const [isComplete, setIsComplete] = useState(false);
   const [hash, setHash] = useState(null);
   const [scanError, setScanError] = useState(null);
+  const [sandboxData, setSandboxData] = useState(null);
 
   const url = hash ? `http://localhost:5000/scan/${hash}` : null;
-  // const hashTest = "bzI1MDUwN2VsOHhsOV9mNm5MQWdXYzdLZTFP_mdaas";
-  // const url = `http://localhost:5000/scan/${hashTest}`;
   const cachedData = url ? cache.get(url) : null;
   const isCachedComplete = cachedData?.scan_results?.progress_percentage === 100 || false;
 
   useEffect(() => {
     if (isCachedComplete) {
-      //console.log('Cached Data:', cachedData);
       setData(cachedData);
       setIsComplete(true);
     }
@@ -30,24 +28,42 @@ export function useFileScan(scanSource) {
     {
       refreshInterval: data?.scan_results?.progress_percentage === 100 ? 0 : 5000,
       revalidateOnFocus: false,
-      onSuccess: (newData) => {
+      onSuccess: async (newData) => {
         console.log('New Data:', newData);
         setData(newData);
+
         if (newData?.scan_results?.progress_percentage === 100) {
           console.log("STOP GET");
           setIsComplete(true);
+
+          // Dacă există sandbox_id, cerem sandbox info
+          const sandboxId = newData?.last_sandbox_id?.[0]?.sandbox_id;
+          const sha1 = newData?.file_info?.sha1;
+
+          //console.log(sandboxId)
+          //console.log(sha1)
+
+          if (sandboxId && sha1) {
+            try {
+              const sandboxRes = await axios.get(`http://localhost:5000/sandbox/${sha1}`);
+              setSandboxData(sandboxRes.data);
+              console.log("Sandbox Data:", sandboxRes.data);
+            } catch (err) {
+              console.error("Error fetching sandbox data:", err);
+            }
+          }
         }
       },
       onError: (err) => {
         console.error('SWR Error:', err);
       },
     }
-  );  
+  );
 
   const startScan = async () => {
     try {
       let response;
-  
+
       if (scanSource.type === 'file') {
         const formData = new FormData();
         formData.append('file', scanSource.value);
@@ -58,7 +74,6 @@ export function useFileScan(scanSource) {
         setHash(hash);
       } else if (scanSource.type === 'url') {
         const encodedUrl = encodeURIComponent(scanSource.value);
-        console.log(encodedUrl)
         const response = await axios.get(`http://localhost:5000/scan-url-direct?encodedUrl=${encodedUrl}`, {
           headers: { apikey: MD_API_KEY },
         });
@@ -70,7 +85,6 @@ export function useFileScan(scanSource) {
       setScanError(err);
     }
   };
-  
 
   useEffect(() => {
     if (scanSource && scanSource.value) {
@@ -80,6 +94,7 @@ export function useFileScan(scanSource) {
 
   return {
     data,
+    sandboxData,
     error: error || scanError,
     isLoading: !data && !error && !scanError,
     isComplete,

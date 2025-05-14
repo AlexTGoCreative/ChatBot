@@ -4,10 +4,25 @@ import ChatForm from "./ChatForm";
 import ChatMessage from "./ChatMessage";
 import "./Chatbot.css";
 
-const Chatbot = ({ fileScanData }) => {
+const Chatbot = ({ Data }) => {
   const chatBodyRef = useRef();
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
+  const { ScanningData, SandboxData } = Data || {};
+
+  const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100;
+
+  useEffect(() => {
+    if (scanCompleted) {
+      setChatHistory((prev) => {
+        const alreadyAdded = prev.some((msg) => msg.text === "Fișierul a fost scanat cu succes.");
+        if (!alreadyAdded) {
+          return [...prev, { role: "model", text: "Fișierul a fost scanat cu succes." }];
+        }
+        return prev;
+      });
+    }
+  }, [scanCompleted]);
 
   const generateBotResponse = async (history) => {
     const updateHistory = (text, isError = false) => {
@@ -17,20 +32,21 @@ const Chatbot = ({ fileScanData }) => {
       ]);
     };
 
-    console.log("date scanate:    ",fileScanData);
+    console.log("date scanate:    ", ScanningData);
+    console.log("Sandbox data", SandboxData);
 
     const requestOptions = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_history: history,
-        scan_results: fileScanData?.scan_results || null,  
-        file_info: fileScanData?.file_info || null,  
-        process_info: fileScanData?.process_info || null,  
-        sanitized_info: fileScanData?.sanitized || null,  
+        chat_history: history,  // Trimiți întregul istoric
+        scan_results: ScanningData?.scan_results || null,
+        file_info: ScanningData?.file_info || null,
+        process_info: ScanningData?.process_info || null,
+        sanitized_info: ScanningData?.sanitized || null,
+        sandbox_data: SandboxData || null,
       }),
     };
-    
 
     try {
       const response = await fetch(import.meta.env.VITE_API_URL, requestOptions);

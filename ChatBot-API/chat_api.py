@@ -44,12 +44,17 @@ class ChatPayload(BaseModel):
     file_info: Optional[Dict] = None     
     process_info: Optional[Dict] = None   
     sanitized_info: Optional[Dict] = None 
+    sandbox_data: Optional[Dict] = None 
 
 @app.post("/ask")
 def ask(payload: ChatPayload):
+    # Extract the last user question
     last_question = next((msg.text for msg in reversed(payload.chat_history) if msg.role == "user"), None)
     if not last_question:
         return {"answer": "No question found in chat history."}
+
+    # Build conversation history context
+    history_context = "\n".join([f"{msg.role.capitalize()}: {msg.text}" for msg in payload.chat_history])
 
     retriever = vectordb.as_retriever()
     relevant_docs = retriever.invoke(last_question)
@@ -60,6 +65,7 @@ def ask(payload: ChatPayload):
     file_info = payload.file_info or {}
     process_info = payload.process_info or {}
     sanitized_info = payload.sanitized_info or {}
+    sandbox_data = payload.sandbox_data or {}
 
     verdicts = ', '.join(process_info.get("verdicts", [])) if process_info.get("verdicts") else "None"
     scan_all_result = scan_results.get("scan_all_result_a", "Unknown")
@@ -94,22 +100,34 @@ Sanitization Progress: {sanitized_info.get('progress_percentage', 'Unknown')}%
 Process Info Result: {process_info.get('result', 'Unknown')}
 Profile Used: {process_info.get('profile', 'Unknown')}
 Verdicts: {verdicts}
+
+Sandbox Scan Engine: {sandbox_data.get('scan_with', 'Unknown')}
+Sandbox Final Verdict: {sandbox_data.get('final_verdict', {}).get('verdict', 'Unknown')}
+Threat Level: {sandbox_data.get('final_verdict', {}).get('threatLevel', 'Unknown')}
+Confidence Score: {sandbox_data.get('final_verdict', {}).get('confidence', 'Unknown')}
+Sandbox Report Link: {sandbox_data.get('store_at', 'Unavailable')}
 """
 
     doc_context = "\n\n".join([doc.page_content for doc in relevant_docs]) if relevant_docs else ""
 
     general_prompt = f"""
 You are a helpful and knowledgeable chatbot representing OPSWAT, a cybersecurity company.
-Answer the user's question to the best of your knowledge. If it's about security, provide detailed, accurate answers.
-If it's a general question from another field, do your best to help anyway.
+Answer the user's question based on the conversation history below, ensuring continuity and context. If the question is about security, provide detailed, accurate answers. If it's a general question from another field, do your best to help.
+
+--- CONVERSATION HISTORY ---
+{history_context}
+--- END HISTORY ---
 
 QUESTION: {last_question}
 """
 
     context_prompt = f"""
 You are a helpful assistant for cybersecurity documentation.
-Use ONLY the information provided in the context below to answer the user's question.
-If the answer is not present in the provided context, say: "The answer is not available in the provided documentation and scan data."
+Use ONLY the information provided in the context below to answer the user's question, while considering the conversation history for context. If the answer is not present in the provided context, say: "The answer is not available in the provided documentation and scan data."
+
+--- CONVERSATION HISTORY ---
+{history_context}
+--- END HISTORY ---
 
 --- CONTEXT START ---
 {scan_context}

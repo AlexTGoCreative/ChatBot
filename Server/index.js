@@ -69,6 +69,25 @@ app.get('/scan-url-direct', async (req, res) => {
       res.status(error.response?.status || 500).json({ error: error.message });
     }
   });
+
+// === Get Sandbox ===
+
+app.get('/sandbox/:sha1', async (req, res) => {
+  const { sha1 } = req.params;
+
+  try {
+    const response = await axios.get(`https://api.metadefender.com/v4/hash/${sha1}/sandbox`, {
+      headers: {
+        apikey: MD_API_KEY,
+      },
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error fetching sandbox data:', error.message);
+    res.status(500).json({ error: 'Failed to fetch sandbox data from Metadefender.' });
+  }
+});
   
 // === Scan Status ===
 app.get('/scan/:hash', async (req, res) => {
