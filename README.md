@@ -34,15 +34,18 @@ Additionally, users can **upload a file via drag and drop** or **enter a URL** t
 
 ## 📦 Tech Stack
 
-| Component       | Stack                    |
-|----------------|--------------------------|
-| Frontend       | Vite + React (JavaScript)|
-| Backend (Python)| FastAPI (Python 3.10)     |
-| Backend (Node.js)| Node.js (with Express) and Python(FASTAPI) |
-| LLM API        | Gemini 1.5                |
-| Vector Search  | FAISS (or similar)        |
-| Embeddings     | Google / OpenAI           |
-| Scraping       | Requests + BeautifulSoup  |
+| Component        | Technology                                                                 |
+|------------------|-----------------------------------------------------------------------------|
+| 🧑‍💻 Frontend       | React (Vite), Tailwind CSS, axios                                   |
+| ⚙️ Backend        | FastAPI (Python 3.10), uvicorn                                                 |
+| 🤖 LLM API        | Gemini 1.5 via `google-generativeai`                                          |
+| 🧠 Embeddings     | sentence-transformers, HuggingFace                                             |
+| 📚 Retrieval/RAG  | Langchain, ChromaDB                                                           |
+| 🔍 Context Search | ChromaDB (persistent vector store)                                            |
+| 🧪 Data           | Scan results (CDR, DLLs, threat classes) from Meatdefender platform           |
+| 🌐 Communication  | REST APIs (JSON-based)                                                        |
+| 🛠 Tooling        | Python-dotenv, Pydantic, transformers, torch                                 |
+
 
 ---
 
