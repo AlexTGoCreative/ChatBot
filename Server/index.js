@@ -53,15 +53,20 @@ app.get('/scan-url-direct', async (req, res) => {
       if (!encodedUrl) {
         return res.status(400).json({ error: 'Missing encodedUrl' });
       }
+
+      //console.log(encodedUrl)
+      const encodedForAPI = encodeURIComponent(encodedUrl);
   
       const response = await axios.get(
-        `https://api.metadefender.com/v4/url/${encodedUrl}`,
+        `https://api.metadefender.com/v4/url/${encodedForAPI}`,
         {
           headers: {
             'apikey': MD_API_KEY,
           },
         }
       );
+
+      //console.log(response.data)
   
       res.json(response.data);
     } catch (error) {

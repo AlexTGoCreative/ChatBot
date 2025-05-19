@@ -11,6 +11,7 @@ export function useFileScan(scanSource) {
   const [hash, setHash] = useState(null);
   const [scanError, setScanError] = useState(null);
   const [sandboxData, setSandboxData] = useState(null);
+  const [UrlData, setUrlData] = useState(null);
 
   const url = hash ? `http://localhost:5000/scan/${hash}` : null;
   const cachedData = url ? cache.get(url) : null;
@@ -62,6 +63,14 @@ export function useFileScan(scanSource) {
 
   const startScan = async () => {
     try {
+
+      setData(null);
+      setUrlData(null);
+      setHash(null);
+      setIsComplete(false);
+      setScanError(null);
+      setSandboxData(null);
+
       let response;
 
       if (scanSource.type === 'file') {
@@ -77,7 +86,7 @@ export function useFileScan(scanSource) {
         const response = await axios.get(`http://localhost:5000/scan-url-direct?encodedUrl=${encodedUrl}`, {
           headers: { apikey: MD_API_KEY },
         });
-        setData(response.data);
+        setUrlData(response.data);
         setIsComplete(true);
       }
     } catch (err) {
@@ -95,6 +104,7 @@ export function useFileScan(scanSource) {
   return {
     data,
     sandboxData,
+    UrlData,
     error: error || scanError,
     isLoading: !data && !error && !scanError,
     isComplete,

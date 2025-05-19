@@ -45,15 +45,14 @@ class ChatPayload(BaseModel):
     process_info: Optional[Dict] = None   
     sanitized_info: Optional[Dict] = None 
     sandbox_data: Optional[Dict] = None 
+    url_data : Optional[Dict] = None 
 
 @app.post("/ask")
 def ask(payload: ChatPayload):
-    # Extract the last user question
     last_question = next((msg.text for msg in reversed(payload.chat_history) if msg.role == "user"), None)
     if not last_question:
         return {"answer": "No question found in chat history."}
 
-    # Build conversation history context
     history_context = "\n".join([f"{msg.role.capitalize()}: {msg.text}" for msg in payload.chat_history])
 
     retriever = vectordb.as_retriever()
@@ -66,46 +65,78 @@ def ask(payload: ChatPayload):
     process_info = payload.process_info or {}
     sanitized_info = payload.sanitized_info or {}
     sandbox_data = payload.sandbox_data or {}
+    url_data = payload.url_data or {}
 
     verdicts = ', '.join(process_info.get("verdicts", [])) if process_info.get("verdicts") else "None"
-    scan_all_result = scan_results.get("scan_all_result_a", "Unknown")
-    total_avs = scan_results.get("total_avs", "Unknown")
-    total_detected_avs = scan_results.get("total_detected_avs", "Unknown")
-    scan_time = scan_results.get("start_time", "Unknown")
-    duration = scan_results.get("total_time", "Unknown")
-    progress = scan_results.get("progress_percentage", "Unknown")
 
-    scan_context = f"""
+    scan_context = f"""  
 File Name: {file_info.get('display_name', 'Unknown')}
 File Size: {file_info.get('file_size', 'Unknown')} bytes
-File Type: {file_info.get('file_type_description', 'Unknown')}
+File Type: {file_info.get('file_type_description', 'Unknown')} 
 SHA256: {file_info.get('sha256', 'Unknown')}
 SHA1: {file_info.get('sha1', 'Unknown')}
 MD5: {file_info.get('md5', 'Unknown')}
 Upload Timestamp: {file_info.get('upload_timestamp', 'Unknown')}
 File ID: {file_info.get('file_id', 'Unknown')}
 Data ID: {file_info.get('data_id', 'Unknown')}
+"""
 
-Overall Scan Result: {scan_all_result}
-Total AV Engines Scanned: {total_avs}
-Total Threats Detected: {total_detected_avs}
-Scan Start Time: {scan_time}
-Scanning Duration: {duration} ms
-Scan Progress: {progress}%
+    if scan_results:
+       scan_context += f"""
+Overall Scan Result: {scan_results.get('scan_all_result_a', 'Unknown')}
+Total AV Engines Scanned: {scan_results.get('total_avs', 'Unknown')}
+Total Threats Detected: {scan_results.get('total_detected_avs', 'Unknown')}
+Scan Start Time: {scan_results.get('start_time', 'Unknown')}
+Scanning Duration: {scan_results.get('total_time', 'Unknown')} ms
+Scan Progress: {scan_results.get('progress_percentage', 'Unknown')}%
+"""
 
+    if sanitized_info:
+       scan_context += f"""
 Sanitization Result: {sanitized_info.get('result', 'Unknown')}
 Sanitized File Link: {sanitized_info.get('file_path', 'Unavailable')}
 Sanitization Progress: {sanitized_info.get('progress_percentage', 'Unknown')}%
+"""
 
+    if process_info:
+       scan_context += f"""
 Process Info Result: {process_info.get('result', 'Unknown')}
 Profile Used: {process_info.get('profile', 'Unknown')}
 Verdicts: {verdicts}
+"""
 
+    if sandbox_data:
+       final_verdict = sandbox_data.get('final_verdict', {})
+       scan_context += f"""
 Sandbox Scan Engine: {sandbox_data.get('scan_with', 'Unknown')}
-Sandbox Final Verdict: {sandbox_data.get('final_verdict', {}).get('verdict', 'Unknown')}
-Threat Level: {sandbox_data.get('final_verdict', {}).get('threatLevel', 'Unknown')}
-Confidence Score: {sandbox_data.get('final_verdict', {}).get('confidence', 'Unknown')}
+Sandbox Final Verdict: {final_verdict.get('verdict', 'Unknown')}
+Threat Level: {final_verdict.get('threatLevel', 'Unknown')}
+Confidence Score: {final_verdict.get('confidence', 'Unknown')}
 Sandbox Report Link: {sandbox_data.get('store_at', 'Unavailable')}
+"""
+
+    if url_data:
+       lookup_results = url_data.get("lookup_results", {})
+       address = url_data.get("address", "Unknown")
+       start_time = lookup_results.get("start_time", "Unknown")
+       detected_by = lookup_results.get("detected_by", "Unknown")
+       sources = lookup_results.get("sources", [])
+
+       sources_summary = ""
+       for src in sources:
+          sources_summary += f"""
+Provider: {src.get('provider', 'N/A')}
+Assessment: {src.get('assessment', 'N/A')}
+Category: {src.get('category', 'N/A')}
+Status Code: {src.get('status', 'N/A')}
+Update Time: {src.get('update_time', 'N/A')}
+"""
+
+       scan_context += f"""
+Scanned URL: {address}
+URL Lookup Start Time: {start_time}
+AV Engines Detected: {detected_by}
+URL Source Reports:{sources_summary}
 """
 
     doc_context = "\n\n".join([doc.page_content for doc in relevant_docs]) if relevant_docs else ""

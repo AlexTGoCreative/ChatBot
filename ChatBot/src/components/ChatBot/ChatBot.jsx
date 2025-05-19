@@ -8,7 +8,7 @@ const Chatbot = ({ Data }) => {
   const chatBodyRef = useRef();
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
-  const { ScanningData, SandboxData } = Data || {};
+  const { ScanningData, SandboxData, UrlScanData } = Data || {};
 
   const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100;
 
@@ -34,17 +34,19 @@ const Chatbot = ({ Data }) => {
 
     console.log("date scanate:    ", ScanningData);
     console.log("Sandbox data", SandboxData);
+    console.log("Url", UrlScanData)
 
     const requestOptions = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_history: history,  // Trimiți întregul istoric
+        chat_history: history,  
         scan_results: ScanningData?.scan_results || null,
         file_info: ScanningData?.file_info || null,
         process_info: ScanningData?.process_info || null,
         sanitized_info: ScanningData?.sanitized || null,
         sandbox_data: SandboxData || null,
+        url_data: UrlScanData || null,
       }),
     };
 

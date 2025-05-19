@@ -7,7 +7,7 @@ import { useFileScan } from "./hooks/useFileScan";
 export default function App() {
   const [scanSource, setScanSource] = useState({ type: null, value: null });
 
-  const { data, sandboxData, isLoading, error, isComplete } = useFileScan(scanSource);
+  const { data, sandboxData, UrlData, isLoading, error, isComplete } = useFileScan(scanSource);
 
   const handleUrlSubmit = (url) => {
     setScanSource({ type: "url", value: url.trim() });
@@ -21,7 +21,7 @@ export default function App() {
   return (
     <div>
       <UrlForm onSubmit={handleUrlSubmit} />
-      <Chatbot Data={{ ScanningData: data, SandboxData: sandboxData }} />
+      <Chatbot Data={{ ScanningData: data, SandboxData: sandboxData , UrlScanData : UrlData}} />
       <FileDropZone onFileDrop={handleFileDrop} />
     </div>
   );
