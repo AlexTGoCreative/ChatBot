@@ -1,20 +1,45 @@
-
-venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 *.sqlite3
 *.log
+*.pkl
+*.npz
+
+# Environments
 .env
+.env.*
+.venv/
+venv/
 
+# FastAPI & uvicorn logs
+logs/
+*.log
 
+# Vector DB & embeddings
+chroma_db/
+embedding_cache/
+*.cache
+
+# Node.js / Frontend
 node_modules/
 dist/
 build/
+dist-ssr/
+*.local
 
-
+# System/IDE files
 .vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 .DS_Store
 Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.bak
