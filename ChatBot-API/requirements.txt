@@ -9,3 +9,4 @@ sentence-transformers==4.0.2
 transformers==4.51.3
 pydantic==2.11.3
 python-dotenv==1.0.0
+langdetect==1.0.9

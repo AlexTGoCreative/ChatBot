@@ -8,6 +8,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from fastapi.middleware.cors import CORSMiddleware
+import shutil
+from langdetect import detect
+
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
@@ -15,14 +18,26 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or "AIzaSyDmsf6rzcUXcFLt2JG1YyAGSR0
 genai.configure(api_key=GOOGLE_API_KEY)
 
 DB_DIR = "chroma_db"
+if os.path.exists(DB_DIR):
+    shutil.rmtree(DB_DIR)
+    print("[WARNING] Existing Chroma DB deleted due to embedding size mismatch.")
+    
 DOC_PATH = "scraped_html/hash_lookup.txt"
 loader = TextLoader(DOC_PATH, encoding="utf-8")
 documents = loader.load()
-splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=300)
+splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=100)
 chunks = splitter.split_documents(documents)
 
-embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vectordb = Chroma.from_documents(chunks, embedding=embedding_model, persist_directory=DB_DIR)
+embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+
+# Create or load vector store
+if os.path.exists(DB_DIR):
+    vectordb = Chroma(persist_directory=DB_DIR, embedding_function=embedding_model)
+    print("[INFO] VectorStore loaded from disk.")
+else:
+    vectordb = Chroma.from_documents(chunks, embedding=embedding_model, persist_directory=DB_DIR)
+    print("[INFO] VectorStore created and persisted.")
+
 
 app = FastAPI()
 
@@ -68,6 +83,7 @@ def ask(payload: ChatPayload):
     url_data = payload.url_data or {}
 
     verdicts = ', '.join(process_info.get("verdicts", [])) if process_info.get("verdicts") else "None"
+    lang = detect(last_question)
 
     scan_context = f"""  
 File Name: {file_info.get('display_name', 'Unknown')}
@@ -142,38 +158,46 @@ URL Source Reports:{sources_summary}
     doc_context = "\n\n".join([doc.page_content for doc in relevant_docs]) if relevant_docs else ""
 
     general_prompt = f"""
-You are a helpful and knowledgeable chatbot representing OPSWAT, a cybersecurity company.
-Answer the user's question based on the conversation history below, ensuring continuity and context. If the question is about security, provide detailed, accurate answers. If it's a general question from another field, do your best to help.
+    You are OPSWAT's advanced cybersecurity assistant, trained to provide comprehensive, highly detailed, and accurate answers based on your extensive knowledge of the company's products, services, and industry standards. You should always provide well-structured, technical, and clear responses, particularly for questions related to security, cybersecurity threats, and OPSWAT solutions.
 
---- CONVERSATION HISTORY ---
-{history_context}
---- END HISTORY ---
+    Respond with clarity, precision, and context, leveraging the conversation history below. If the answer involves security threats, file analysis, or scanning results, ensure the response is based on the latest, relevant data, explaining technical terms when necessary. If the question is outside the domain of cybersecurity, offer helpful answers to the best of your ability.
 
-QUESTION: {last_question}
-"""
+    Please ensure your answers are as informative as possible and consider every bit of provided context.
+
+    --- CONVERSATION HISTORY ---
+    {history_context}
+    --- END HISTORY ---
+
+    QUESTION: {last_question}
+    """
 
     context_prompt = f"""
-You are a helpful assistant for cybersecurity documentation.
-Use ONLY the information provided in the context below to answer the user's question, while considering the conversation history for context. If the answer is not present in the provided context, say: "The answer is not available in the provided documentation and scan data."
+    You are OPSWAT's assistant specialized in providing cybersecurity documentation. Your goal is to extract the most relevant answers using the context provided below, which includes critical details about security analysis, scan results, and other technical information. If the answer cannot be found in the context, explicitly state that the information is not available.
 
---- CONVERSATION HISTORY ---
-{history_context}
---- END HISTORY ---
+    Make sure to focus on giving answers that are specific, accurate, and adhere to cybersecurity best practices, as this is crucial for the user. Ensure clarity and technical correctness in your response.
 
---- CONTEXT START ---
-{scan_context}
+    Use only the following context for your answer and give thorough explanations when required.
 
-{doc_context}
---- CONTEXT END ---
+    --- CONVERSATION HISTORY ---
+    {history_context}
+    --- END HISTORY ---
 
-QUESTION: {last_question}
+    --- CONTEXT START ---
+    {scan_context}
 
-Answer clearly using technical language if needed.
-"""
+    {doc_context}
+    --- CONTEXT END ---
 
+    QUESTION: {last_question}
+
+    Answer thoroughly, using the most relevant data available, and include technical language when needed. If the answer is not directly available, do not guess; instead, say: "The answer is not available in the provided documentation and scan data."
+    """
+
+  
     if doc_context or scan_context:
         response = model.generate_content(context_prompt)
 
+       
         if response.text.strip() == "The answer is not available in the provided documentation and scan data.":
             print("Fallback triggered. Using general OPSWAT-style response.")
             response = model.generate_content(general_prompt)
@@ -181,4 +205,5 @@ Answer clearly using technical language if needed.
         print("No relevant documents or scan data. Using general model response.")
         response = model.generate_content(general_prompt)
 
+    # Răspunsul se va adapta limbei detectate
     return {"answer": response.text}
