@@ -1,3 +1,4 @@
+
 #chatbot-toggler {
   position: fixed;
   bottom: 15px;
@@ -286,6 +287,7 @@
     padding: 6px 10px;
   }
 }
+
 .header-buttons {
   display: flex;
   gap: 6px;
@@ -294,4 +296,124 @@
 
 .header-buttons button {
   margin: 0; 
+}
+
+.history-dropdown {
+  position: absolute;
+  top: 50px; /* Height of chat-header (8px padding * 2 + 34px content) */
+  bottom: 50px; /* Height of chat-footer (8px padding * 2 + 34px content) */
+  width: 100%;
+  overflow-y: auto;
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #c0bec7 transparent;
+  z-index: 10;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.history-table th,
+.history-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border: none;
+}
+
+.history-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05rem;
+}
+
+.history-table tr.history-entry:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.history-table tr.history-entry {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.history-table tr.history-entry:hover {
+  background-color: #e9ecef;
+}
+
+.history-table td {
+  color: #555;
+}
+
+.history-empty {
+  padding: 16px;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
+.history-table th,
+.history-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border: none;
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+}
+
+
+.history-table th:nth-child(1),
+.history-table td:nth-child(1) {
+  width: 40%; 
+}
+
+.history-table th:nth-child(2),
+.history-table td:nth-child(2) {
+  width: 20%; 
+}
+
+.history-table th:nth-child(3),
+.history-table td:nth-child(3) {
+  width: 40%; 
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history-table tr.history-entry:hover {
+  background-color: #f0f0f0;
+}
+
+.clear-history-button {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  padding: 8px 16px;
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.clear-history-button:hover {
+  background-color: #cc0000;
+  transform: translateY(-2px);
+}
+
+.clear-history-button:active {
+  transform: translateY(0);
 }

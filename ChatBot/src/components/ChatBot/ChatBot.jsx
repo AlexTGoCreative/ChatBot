@@ -3,26 +3,96 @@ import ChatbotIcon from "./ChatbotIcon";
 import ChatForm from "./ChatForm";
 import ChatMessage from "./ChatMessage";
 import "./Chatbot.css";
+import axios from 'axios';
 
-const Chatbot = ({ Data }) => {
+const Chatbot = ({ Data, onSelectHistory }) => {
   const chatBodyRef = useRef();
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
-  const { ScanningData, SandboxData, UrlScanData } = Data || {};
+  const [scanHistory, setScanHistory] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [localData, setLocalData] = useState(Data || {});
 
-  const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100;
+  const { ScanningData, SandboxData, UrlScanData } = localData;
+  const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100 || UrlScanData?.lookup_results?.start_time;
+
+  useEffect(() => {
+    setLocalData(Data || {});
+  }, [Data]);
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("scanHistory") || "[]");
+    setScanHistory(saved);
+    setShowDropdown(false);
+  }, []);
 
   useEffect(() => {
     if (scanCompleted) {
-      setChatHistory((prev) => {
-        const alreadyAdded = prev.some((msg) => msg.text === "Fișierul a fost scanat cu succes.");
-        if (!alreadyAdded) {
-          return [...prev, { role: "model", text: "Fișierul a fost scanat cu succes." }];
-        }
-        return prev;
-      });
+      const timestamp = new Date().toLocaleString();
+      let newEntry;
+
+      if (ScanningData) {
+        const dataId = ScanningData?.data_id || "";
+        const sha1 = ScanningData?.file_info?.sha1 || "";
+        const sandboxId = ScanningData?.last_sandbox_id?.[0]?.sandbox_id || "";
+        const displayName = ScanningData?.file_info?.display_name || "Unknown File";
+        const verdict = ScanningData?.process_info?.verdicts?.[0] || "No verdict available";
+
+        newEntry = {
+          id: Date.now(),
+          timestamp,
+          type: "file",
+          displayName,
+          verdict,
+          dataId,
+          sha1,
+          sandboxId,
+        };
+      } else if (UrlScanData) {
+        const address = UrlScanData?.address || "Unknown URL";
+        const sources = UrlScanData?.lookup_results?.sources || [];
+
+        newEntry = {
+          id: Date.now(),
+          timestamp,
+          type: "url",
+          displayName: address,
+          sources,
+          address,
+        };
+      }
+
+      if (newEntry) {
+        setScanHistory((prev) => {
+          const isDuplicate = prev.some((entry) => {
+            if (newEntry.type === "file" && entry.type === "file") {
+              return entry.displayName === newEntry.displayName && entry.sha1 === newEntry.sha1;
+            } else if (newEntry.type === "url" && entry.type === "url") {
+              return entry.address === newEntry.address;
+            }
+            return false;
+          });
+
+          if (isDuplicate) {
+            return prev;
+          }
+
+          const updated = [...prev, newEntry];
+          localStorage.setItem("scanHistory", JSON.stringify(updated));
+          return updated;
+        });
+
+        setChatHistory((prev) => {
+          const message = ScanningData ? "Fișierul a fost scanat cu succes." : "URL-ul a fost scanat cu succes.";
+          const alreadyAdded = prev.some((msg) => msg.text === message);
+          if (!alreadyAdded) {
+            return [...prev, { role: "model", text: message }];
+          }
+          return prev;
+        });
+      }
     }
-  }, [scanCompleted]);
+  }, [scanCompleted, ScanningData, UrlScanData]);
 
   const generateBotResponse = async (history) => {
     const updateHistory = (text, isError = false) => {
@@ -32,15 +102,11 @@ const Chatbot = ({ Data }) => {
       ]);
     };
 
-    console.log("date scanate:    ", ScanningData);
-    console.log("Sandbox data", SandboxData);
-    console.log("Url", UrlScanData)
-
     const requestOptions = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_history: history,  
+        chat_history: history,
         scan_results: ScanningData?.scan_results || null,
         file_info: ScanningData?.file_info || null,
         process_info: ScanningData?.process_info || null,
@@ -66,6 +132,86 @@ const Chatbot = ({ Data }) => {
     }
   }, [chatHistory]);
 
+  const handleSelectHistory = async (entry) => {
+    setShowDropdown(false);
+
+    try {
+      let newScanningData = null;
+      let newSandboxData = null;
+      let newUrlScanData = null;
+
+      if (entry.type === "file") {
+        const dataId = entry.dataId;
+        const sha1 = entry.sha1;
+        const sandboxId = entry.sandboxId;
+
+        if (dataId) {
+          const fileResponse = await axios.get(`http://localhost:5000/scan/${dataId}`);
+          newScanningData = fileResponse.data;
+        }
+
+        if (sandboxId && sha1) {
+          const sandboxResponse = await axios.get(`http://localhost:5000/sandbox/${sha1}`);
+          newSandboxData = sandboxResponse.data;
+        }
+      } else if (entry.type === "url") {
+        const address = entry.address;
+        const encodedUrl = encodeURIComponent(address);
+        const urlResponse = await axios.get(
+          `http://localhost:5000/scan-url-direct?encodedUrl=${encodedUrl}`,
+          {
+            headers: { apikey: import.meta.env.VITE_MD_API_KEY },
+          }
+        );
+        newUrlScanData = urlResponse.data;
+      }
+
+      setLocalData({
+        ScanningData: newScanningData || null,
+        SandboxData: newSandboxData || null,
+        UrlScanData: newUrlScanData || null,
+      });
+
+      onSelectHistory?.({
+        ScanningData: newScanningData || null,
+        SandboxData: newSandboxData || null,
+        UrlScanData: newUrlScanData || null,
+      });
+
+      console.log("newScanningData:", ScanningData);
+      console.log("newSandboxData:", SandboxData);
+      console.log("newUrlScanData:", UrlScanData);
+    } catch (error) {
+      console.error("Error in handleSelectHistory:", error);
+    }
+  };
+
+  const handleClearHistory = () => {
+    localStorage.removeItem("scanHistory");
+    setScanHistory([]);
+  };
+
+  const getDisplayInfo = (entry) => {
+    if (entry.type === "file") {
+      return {
+        name: entry.displayName || "Unknown File",
+        verdict: entry.verdict || "No verdict available",
+      };
+    } else if (entry.type === "url") {
+      const sources = entry.sources || [];
+      const verdict = sources.find((s) => s.assessment === "trustworthy")
+        ? "Trustworthy"
+        : sources.some((s) => s.status === 5)
+        ? "Unknown"
+        : "Suspicious";
+      return {
+        name: entry.displayName || "Unknown URL",
+        verdict,
+      };
+    }
+    return { name: "Unknown", verdict: "No verdict available" };
+  };
+
   return (
     <div className={`container ${showChatbot ? "show-chatbot" : ""}`}>
       <button
@@ -84,14 +230,69 @@ const Chatbot = ({ Data }) => {
             <h2 className="logo-text">Benny</h2>
           </div>
           <div className="header-buttons">
-            <button onClick={() => setChatHistory([])} className="material-symbols-rounded">
+            <button onClick={() => setShowDropdown((prev) => !prev)} className="material-symbols-rounded">
+              schedule
+            </button>
+            <button
+              onClick={() => {
+                setChatHistory([]);
+                setShowDropdown(false);
+              }}
+              className="material-symbols-rounded"
+            >
               refresh
             </button>
-            <button onClick={() => setShowChatbot((prev) => !prev)} className="material-symbols-rounded">
+            <button
+              onClick={() => {
+                setShowChatbot(false);
+                setShowDropdown(false);
+              }}
+              className="material-symbols-rounded"
+            >
               keyboard_arrow_down
             </button>
           </div>
         </div>
+
+        {showDropdown && (
+          <div className="history-dropdown">
+            <button
+              onClick={handleClearHistory}
+              className="clear-history-button"
+            >
+              Clear History
+            </button>
+            {scanHistory.length === 0 && <p className="history穿越
+history-empty">Fără scanări salvate.</p>}
+            {scanHistory.length > 0 && (
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>NAME</th>
+                    <th>SCAN TIME</th>
+                    <th>VERDICT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scanHistory.map((entry) => {
+                    const { name, verdict } = getDisplayInfo(entry);
+                    return (
+                      <tr
+                        key={entry.id}
+                        className="history-entry"
+                        onClick={() => handleSelectHistory(entry)}
+                      >
+                        <td title={name}>{name}</td>
+                        <td title={entry.timestamp || "N/A"}>{entry.timestamp || "N/A"}</td>
+                        <td title={verdict}>{verdict}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
 
         <div ref={chatBodyRef} className="chat-body">
           <div className="message bot-message">
