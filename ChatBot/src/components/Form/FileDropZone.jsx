@@ -80,7 +80,7 @@ const FileDropZone = ({ onFileDrop }) => {
             fontWeight: "bold",
           }}
         >
-          🗂️ Trage fișierul aici pentru a-l încărca
+          🗂️ Drag the file here to upload it
         </div>
       )}
     </div>

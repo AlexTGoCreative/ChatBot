@@ -10,7 +10,9 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [scanHistory, setScanHistory] = useState([]);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [savedChatHistories, setSavedChatHistories] = useState([]);
+  const [showScanDropdown, setShowScanDropdown] = useState(false);
+  const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
   const [localData, setLocalData] = useState(Data || {});
 
   const { ScanningData, SandboxData, UrlScanData } = localData;
@@ -21,9 +23,10 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   }, [Data]);
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("scanHistory") || "[]");
-    setScanHistory(saved);
-    setShowDropdown(false);
+    const savedScans = JSON.parse(localStorage.getItem("scanHistory") || "[]");
+    const savedChats = JSON.parse(localStorage.getItem("chatHistories") || "[]");
+    setScanHistory(savedScans);
+    setSavedChatHistories(savedChats);
   }, []);
 
   useEffect(() => {
@@ -83,7 +86,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         });
 
         setChatHistory((prev) => {
-          const message = ScanningData ? "Fișierul a fost scanat cu succes." : "URL-ul a fost scanat cu succes.";
+          const message = ScanningData ? "The file was scanned successfully." : "The URL was scanned successfully.";
           const alreadyAdded = prev.some((msg) => msg.text === message);
           if (!alreadyAdded) {
             return [...prev, { role: "model", text: message }];
@@ -116,6 +119,10 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       }),
     };
 
+    // console.log("1:",ScanningData);
+    // console.log("2:",SandboxData);
+    // console.log("3:",UrlScanData);
+
     try {
       const response = await fetch(import.meta.env.VITE_API_URL, requestOptions);
       const data = await response.json();
@@ -132,8 +139,9 @@ const Chatbot = ({ Data, onSelectHistory }) => {
     }
   }, [chatHistory]);
 
-  const handleSelectHistory = async (entry) => {
-    setShowDropdown(false);
+  const handleSelectScanHistory = async (entry) => {
+    setShowScanDropdown(false);
+    setShowChatHistoryDropdown(false);
 
     try {
       let newScanningData = null;
@@ -178,38 +186,99 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         UrlScanData: newUrlScanData || null,
       });
 
-      console.log("newScanningData:", ScanningData);
-      console.log("newSandboxData:", SandboxData);
-      console.log("newUrlScanData:", UrlScanData);
     } catch (error) {
-      console.error("Error in handleSelectHistory:", error);
+      console.error("Error in handleSelectScanHistory:", error);
     }
   };
 
-  const handleClearHistory = () => {
+  const handleSelectChatHistory = (entry) => {
+    setShowChatHistoryDropdown(false);
+    setShowScanDropdown(false);
+    setChatHistory(entry.messages);
+    setLocalData({
+      ScanningData: entry.ScanningData || null,
+      SandboxData: entry.SandboxData || null,
+      UrlScanData: entry.UrlScanData || null,
+    });
+    onSelectHistory?.({
+      ScanningData: entry.ScanningData || null,
+      SandboxData: entry.SandboxData || null,
+      UrlScanData: entry.UrlScanData || null,
+    });
+  };
+
+  const handleClearScanHistory = () => {
     localStorage.removeItem("scanHistory");
     setScanHistory([]);
   };
 
+  const handleClearChatHistory = () => {
+    localStorage.removeItem("chatHistories");
+    setSavedChatHistories([]);
+  };
+
+  const handleSaveChatHistory = () => {
+    if (chatHistory.length === 0) return;
+
+    const timestamp = new Date().toLocaleString();
+    const newEntry = {
+      id: Date.now(),
+      timestamp,
+      messages: chatHistory,
+      ScanningData: ScanningData || null,
+      SandboxData: SandboxData || null,
+      UrlScanData: UrlScanData || null,
+    };
+
+    setSavedChatHistories((prev) => {
+      const updated = [...prev, newEntry];
+      localStorage.setItem("chatHistories", JSON.stringify(updated));
+      return updated;
+    });
+
+    setChatHistory([]);
+    setLocalData({});
+    onSelectHistory?.({});
+  };
+
   const getDisplayInfo = (entry) => {
+    let verdict, color;
+
     if (entry.type === "file") {
+      verdict = entry.verdict || "No verdict available";
+      if (verdict === "No Threat Detected") {
+        color = "green";
+      } else if (verdict.toLowerCase().includes("infected")) {
+        color = "red";
+      } else {
+        color = "default";
+      }
       return {
         name: entry.displayName || "Unknown File",
-        verdict: entry.verdict || "No verdict available",
+        verdict,
+        color,
       };
     } else if (entry.type === "url") {
       const sources = entry.sources || [];
-      const verdict = sources.find((s) => s.assessment === "trustworthy")
+      verdict = sources.find((s) => s.assessment === "trustworthy")
         ? "Trustworthy"
         : sources.some((s) => s.status === 5)
         ? "Unknown"
         : "Suspicious";
+      if (verdict === "Trustworthy") {
+        color = "green";
+      } else if (verdict === "Suspicious") {
+        color = "red";
+      } else {
+        color = "default";
+      }
       return {
         name: entry.displayName || "Unknown URL",
         verdict,
+        color,
       };
     }
-    return { name: "Unknown", verdict: "No verdict available" };
+    return { name: "Unknown", verdict: "No verdict available", color: "default" };
   };
 
   return (
@@ -226,26 +295,32 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       <div className="chatbot-popup">
         <div className="chat-header">
           <div className="header-info">
-            <ChatbotIcon />
-            <h2 className="logo-text">Benny</h2>
+            <ChatbotIcon
+              onClick={() => {
+                setShowChatHistoryDropdown((prev) => !prev);
+                setShowScanDropdown(false); 
+              }}
+            />
+            <h2 className="logo-text">Ozzy</h2>
           </div>
           <div className="header-buttons">
-            <button onClick={() => setShowDropdown((prev) => !prev)} className="material-symbols-rounded">
-              schedule
-            </button>
             <button
               onClick={() => {
-                setChatHistory([]);
-                setShowDropdown(false);
+                setShowScanDropdown((prev) => !prev);
+                setShowChatHistoryDropdown(false); 
               }}
               className="material-symbols-rounded"
             >
+              schedule
+            </button>
+            <button onClick={handleSaveChatHistory} className="material-symbols-rounded">
               refresh
             </button>
             <button
               onClick={() => {
                 setShowChatbot(false);
-                setShowDropdown(false);
+                setShowScanDropdown(false);
+                setShowChatHistoryDropdown(false);
               }}
               className="material-symbols-rounded"
             >
@@ -254,16 +329,15 @@ const Chatbot = ({ Data, onSelectHistory }) => {
           </div>
         </div>
 
-        {showDropdown && (
-          <div className="history-dropdown">
+        {showScanDropdown && (
+          <div className="history-dropdown scan-history-dropdown">
             <button
-              onClick={handleClearHistory}
+              onClick={handleClearScanHistory}
               className="clear-history-button"
             >
-              Clear History
+              Clear
             </button>
-            {scanHistory.length === 0 && <p className="history穿越
-history-empty">Fără scanări salvate.</p>}
+            {scanHistory.length === 0 && <p className="history-empty">No saved scans.</p>}
             {scanHistory.length > 0 && (
               <table className="history-table">
                 <thead>
@@ -275,19 +349,59 @@ history-empty">Fără scanări salvate.</p>}
                 </thead>
                 <tbody>
                   {scanHistory.map((entry) => {
-                    const { name, verdict } = getDisplayInfo(entry);
+                    const { name, verdict, color } = getDisplayInfo(entry);
                     return (
                       <tr
                         key={entry.id}
                         className="history-entry"
-                        onClick={() => handleSelectHistory(entry)}
+                        onClick={() => handleSelectScanHistory(entry)}
                       >
-                        <td title={name}>{name}</td>
+                        <td title={name} className={`history-cell-${color}`}>
+                          {name}
+                        </td>
                         <td title={entry.timestamp || "N/A"}>{entry.timestamp || "N/A"}</td>
-                        <td title={verdict}>{verdict}</td>
+                        <td title={verdict} className={`history-cell-${color}`}>
+                          {verdict}
+                        </td>
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {showChatHistoryDropdown && (
+          <div className="history-dropdown chat-history-dropdown">
+            <button
+              onClick={handleClearChatHistory}
+              className="clear-history-button"
+            >
+              Clear
+            </button>
+            {savedChatHistories.length === 0 && <p className="history-empty">No saved chats.</p>}
+            {savedChatHistories.length > 0 && (
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>TIMESTAMP</th>
+                    <th>MESSAGES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savedChatHistories.map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className="history-entry"
+                      onClick={() => handleSelectChatHistory(entry)}
+                    >
+                      <td title={entry.timestamp || "N/A"}>{entry.timestamp || "N/A"}</td>
+                      <td>
+                        {entry.messages.slice(-1)[0]?.text?.substring(0, 50) || "No messages"}...
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}
