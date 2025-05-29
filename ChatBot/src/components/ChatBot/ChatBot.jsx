@@ -14,6 +14,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   const [showScanDropdown, setShowScanDropdown] = useState(false);
   const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
   const [localData, setLocalData] = useState(Data || {});
+  const [selectedChatHistoryId, setSelectedChatHistoryId] = useState(null);
 
   const { ScanningData, SandboxData, UrlScanData } = localData;
   const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100 || UrlScanData?.lookup_results?.start_time;
@@ -119,10 +120,6 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       }),
     };
 
-    // console.log("1:",ScanningData);
-    // console.log("2:",SandboxData);
-    // console.log("3:",UrlScanData);
-
     try {
       const response = await fetch(import.meta.env.VITE_API_URL, requestOptions);
       const data = await response.json();
@@ -192,6 +189,39 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   };
 
   const handleSelectChatHistory = (entry) => {
+    if (chatHistory.length > 0) {
+      const timestamp = new Date().toLocaleString();
+      setSavedChatHistories((prev) => {
+        let updated;
+        if (selectedChatHistoryId) {
+          updated = prev.map((item) =>
+            item.id === selectedChatHistoryId
+              ? {
+                  ...item,
+                  timestamp,
+                  messages: chatHistory,
+                  ScanningData: ScanningData || null,
+                  SandboxData: SandboxData || null,
+                  UrlScanData: UrlScanData || null,
+                }
+              : item
+          );
+        } else {
+          const newEntry = {
+            id: Date.now(),
+            timestamp,
+            messages: chatHistory,
+            ScanningData: ScanningData || null,
+            SandboxData: SandboxData || null,
+            UrlScanData: UrlScanData || null,
+          };
+          updated = [...prev, newEntry];
+        }
+        localStorage.setItem("chatHistories", JSON.stringify(updated));
+        return updated;
+      });
+    }
+
     setShowChatHistoryDropdown(false);
     setShowScanDropdown(false);
     setChatHistory(entry.messages);
@@ -200,6 +230,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       SandboxData: entry.SandboxData || null,
       UrlScanData: entry.UrlScanData || null,
     });
+    setSelectedChatHistoryId(entry.id);
     onSelectHistory?.({
       ScanningData: entry.ScanningData || null,
       SandboxData: entry.SandboxData || null,
@@ -215,29 +246,46 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   const handleClearChatHistory = () => {
     localStorage.removeItem("chatHistories");
     setSavedChatHistories([]);
+    setSelectedChatHistoryId(null);
   };
 
   const handleSaveChatHistory = () => {
     if (chatHistory.length === 0) return;
 
     const timestamp = new Date().toLocaleString();
-    const newEntry = {
-      id: Date.now(),
-      timestamp,
-      messages: chatHistory,
-      ScanningData: ScanningData || null,
-      SandboxData: SandboxData || null,
-      UrlScanData: UrlScanData || null,
-    };
-
     setSavedChatHistories((prev) => {
-      const updated = [...prev, newEntry];
+      let updated;
+      if (selectedChatHistoryId) {
+        updated = prev.map((entry) =>
+          entry.id === selectedChatHistoryId
+            ? {
+                ...entry,
+                timestamp,
+                messages: chatHistory,
+                ScanningData: ScanningData || null,
+                SandboxData: SandboxData || null,
+                UrlScanData: UrlScanData || null,
+              }
+            : entry
+        );
+      } else {
+        const newEntry = {
+          id: Date.now(),
+          timestamp,
+          messages: chatHistory,
+          ScanningData: ScanningData || null,
+          SandboxData: SandboxData || null,
+          UrlScanData: UrlScanData || null,
+        };
+        updated = [...prev, newEntry];
+      }
       localStorage.setItem("chatHistories", JSON.stringify(updated));
       return updated;
     });
 
     setChatHistory([]);
     setLocalData({});
+    setSelectedChatHistoryId(null);
     onSelectHistory?.({});
   };
 
@@ -253,8 +301,10 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       } else {
         color = "default";
       }
+      const name = entry.displayName || "Unknown File";
       return {
-        name: entry.displayName || "Unknown File",
+        name: name.length > 10 ? `${name.substring(0, 10)}...` : name,
+        fullName: name,
         verdict,
         color,
       };
@@ -272,13 +322,15 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       } else {
         color = "default";
       }
+      const name = entry.displayName || "Unknown URL";
       return {
-        name: entry.displayName || "Unknown URL",
+        name: name.length > 10 ? `${name.substring(0, 10)}...` : name,
+        fullName: name,
         verdict,
         color,
       };
     }
-    return { name: "Unknown", verdict: "No verdict available", color: "default" };
+    return { name: "Unknown", fullName: "Unknown", verdict: "No verdict available", color: "default" };
   };
 
   return (
@@ -298,7 +350,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
             <ChatbotIcon
               onClick={() => {
                 setShowChatHistoryDropdown((prev) => !prev);
-                setShowScanDropdown(false); 
+                setShowScanDropdown(false);
               }}
             />
             <h2 className="logo-text">Ozzy</h2>
@@ -307,7 +359,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
             <button
               onClick={() => {
                 setShowScanDropdown((prev) => !prev);
-                setShowChatHistoryDropdown(false); 
+                setShowChatHistoryDropdown(false);
               }}
               className="material-symbols-rounded"
             >
@@ -330,16 +382,16 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         </div>
 
         {showScanDropdown && (
-          <div className="history-dropdown scan-history-dropdown">
+          <div className="scan-history-dropdown">
             <button
               onClick={handleClearScanHistory}
-              className="clear-history-button"
+              className="scan-clear-history-button"
             >
               Clear
             </button>
-            {scanHistory.length === 0 && <p className="history-empty">No saved scans.</p>}
+            {scanHistory.length === 0 && <p className="scan-history-empty">No saved scans.</p>}
             {scanHistory.length > 0 && (
-              <table className="history-table">
+              <table className="scan-history-table">
                 <thead>
                   <tr>
                     <th>NAME</th>
@@ -349,18 +401,18 @@ const Chatbot = ({ Data, onSelectHistory }) => {
                 </thead>
                 <tbody>
                   {scanHistory.map((entry) => {
-                    const { name, verdict, color } = getDisplayInfo(entry);
+                    const { name, fullName, verdict, color } = getDisplayInfo(entry);
                     return (
                       <tr
                         key={entry.id}
-                        className="history-entry"
+                        className="scan-history-entry"
                         onClick={() => handleSelectScanHistory(entry)}
                       >
-                        <td title={name} className={`history-cell-${color}`}>
+                        <td title={fullName} className={`scan-history-cell-${color}`}>
                           {name}
                         </td>
                         <td title={entry.timestamp || "N/A"}>{entry.timestamp || "N/A"}</td>
-                        <td title={verdict} className={`history-cell-${color}`}>
+                        <td title={verdict} className={`scan-history-cell-${color}`}>
                           {verdict}
                         </td>
                       </tr>
@@ -373,16 +425,16 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         )}
 
         {showChatHistoryDropdown && (
-          <div className="history-dropdown chat-history-dropdown">
+          <div className="chat-history-dropdown">
             <button
               onClick={handleClearChatHistory}
-              className="clear-history-button"
+              className="chat-clear-history-button"
             >
               Clear
             </button>
-            {savedChatHistories.length === 0 && <p className="history-empty">No saved chats.</p>}
+            {savedChatHistories.length === 0 && <p className="chat-history-empty">No saved chats.</p>}
             {savedChatHistories.length > 0 && (
-              <table className="history-table">
+              <table className="chat-history-table">
                 <thead>
                   <tr>
                     <th>TIMESTAMP</th>
@@ -390,18 +442,20 @@ const Chatbot = ({ Data, onSelectHistory }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {savedChatHistories.map((entry) => (
-                    <tr
-                      key={entry.id}
-                      className="history-entry"
-                      onClick={() => handleSelectChatHistory(entry)}
-                    >
-                      <td title={entry.timestamp || "N/A"}>{entry.timestamp || "N/A"}</td>
-                      <td>
-                        {entry.messages.slice(-1)[0]?.text?.substring(0, 50) || "No messages"}...
-                      </td>
-                    </tr>
-                  ))}
+                  {savedChatHistories.map((entry) => {
+                    const messagePreview = entry.messages.slice(-1)[0]?.text || "No messages";
+                    const truncatedMessage = messagePreview.length > 25 ? `${messagePreview.substring(0, 25)}...` : messagePreview;
+                    return (
+                      <tr
+                        key={entry.id}
+                        className="chat-history-entry"
+                        onClick={() => handleSelectChatHistory(entry)}
+                      >
+                        <td title={entry.timestamp || "N/A"}>{entry.timestamp || "N/A"}</td>
+                        <td title={messagePreview}>{truncatedMessage}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
