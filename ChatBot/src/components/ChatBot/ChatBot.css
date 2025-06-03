@@ -56,7 +56,10 @@
   pointer-events: none;
   transform: scale(0.2);
   overflow: hidden;
-  background: linear-gradient(to top, #c3ceee, #e1e1e1, #c3ceee);
+  background: linear-gradient(to top, rgba(195, 206, 238, 0.5), rgba(225, 225, 225, 0.5), rgba(195, 206, 238, 0.5)), url(https://static.opswat.com/assets/images/ozzy-bg.webp);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   border-radius: 15px;
   transform-origin: bottom right;
   box-shadow: 0 0 128px 0 rgba(0, 0, 0, 0.1),
@@ -74,11 +77,25 @@
 
 .chatbot-popup .chat-header {
   display: flex;
-  padding: 8px 12px;
+  padding: 4px 6px; 
   align-items: center;
-  background: #ffffff;
+  background: #ffffff; 
   justify-content: space-between;
   flex-shrink: 0;
+}
+
+.chat-header .inner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 4px 6px; 
+  transition: background 0.2s ease;
+}
+
+.chat-header .inner-header:hover {
+  background: #e6efff; 
+  border-radius: 8px; 
 }
 
 .chat-header .header-info {
@@ -111,19 +128,20 @@
   border: none;
   height: 30px;
   width: 30px;
-  color: #0A0F1E;
+  color: #2f3b51;
   cursor: pointer;
   padding-top: 2px;
   margin-right: -5px;
   font-size: 1.5rem;
-  border-radius: 50%;
+  border-radius: 8px; 
   background: none;
   transition: 0.2s ease;
   user-select: none;
 }
 
 .chat-header button:hover {
-  background: #254bbd;
+  background: #d6e4ff; 
+  color: #0055ff;
 }
 
 .chat-body {
@@ -187,17 +205,22 @@
 .chat-footer {
   position: relative;
   width: 100%;
-  background: #fff;
+  background: transparent; 
   padding: 8px 12px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center; 
 }
 
 .chat-footer .chat-form {
   display: flex;
   align-items: center;
   position: relative;
-  background: #fff;
-  border-radius: 20px;
+  width: 100%; 
+  height: 34px; 
+  background: #fff; 
+  border-radius: 12px;
   outline: 1px solid #CCCCE5;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.06);
 }
@@ -486,6 +509,7 @@
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.2s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  user-select: none;
 }
 
 .chat-clear-history-button:hover {
@@ -495,4 +519,8 @@
 
 .chat-clear-history-button:active {
   transform: translateY(0);
+}
+
+.header-buttons .material-symbols-rounded {
+  font-size: 20px; 
 }
