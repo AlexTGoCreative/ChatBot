@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import "./FileDropZone.css";
 
 const FileDropZone = ({ onFileDrop }) => {
   const [dragCounter, setDragCounter] = useState(0);
@@ -56,31 +57,11 @@ const FileDropZone = ({ onFileDrop }) => {
   }, [onFileDrop]);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0, left: 0, width: "100%", height: "100%",
-        zIndex: 1000,
-        pointerEvents: isDragging ? "auto" : "none",
-        backgroundColor: isDragging ? "rgba(0,0,0,0.4)" : "transparent",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transition: "background-color 0.2s ease-in-out",
-      }}
-    >
+    <div className={`file-drop-overlay ${isDragging ? 'active' : ''}`}>
       {isDragging && (
-        <div
-          style={{
-            padding: "40px 80px",
-            backgroundColor: "#fff",
-            borderRadius: "12px",
-            boxShadow: "0 0 20px rgba(0,0,0,0.2)",
-            fontSize: "20px",
-            fontWeight: "bold",
-          }}
-        >
-          🗂️ Drag the file here to upload it
+        <div className="drop-message">
+          <span className="icon">🗂️</span>
+          <span>Drag the file here to upload it</span>
         </div>
       )}
     </div>

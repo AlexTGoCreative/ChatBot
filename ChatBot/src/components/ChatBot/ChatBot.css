@@ -1,10 +1,10 @@
 #chatbot-toggler {
   position: fixed;
   bottom: 15px;
-  right: 15px;
+  right: 18px;
   border: none;
-  height: 50px;
-  width: 50px;
+  height: 60px;
+  width: 60px;
   display: flex;
   cursor: pointer;
   align-items: center;
@@ -51,8 +51,8 @@
   width: 380px;
   height: 450px;
   opacity: 0;
-  right: 15px;
-  bottom: 75px;
+  right: 18px;
+  bottom: 80px;
   pointer-events: none;
   transform: scale(0.2);
   overflow: hidden;
@@ -270,6 +270,21 @@
 
 .header-buttons button {
   margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-buttons button svg {
+  fill: #2f3b51;
+  background: transparent !important;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+}
+
+.header-buttons button:hover svg {
+  fill: #0055ff;
 }
 
 .scan-history-dropdown {

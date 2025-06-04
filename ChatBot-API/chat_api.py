@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import os
@@ -10,7 +10,51 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
 from langdetect import detect
+from functools import lru_cache
+import time
+import logging
+from datetime import datetime
+import json
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('chatbot.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+class PerformanceMonitor:
+    def __init__(self):
+        self.metrics = []
+
+    def record_metric(self, operation: str, duration: float):
+        self.metrics.append({
+            "timestamp": datetime.now().isoformat(),
+            "operation": operation,
+            "duration": duration
+        })
+        if len(self.metrics) > 1000:  
+            self.metrics = self.metrics[-1000:]
+
+    def get_average_duration(self, operation: str) -> float:
+        relevant_metrics = [m for m in self.metrics if m["operation"] == operation]
+        if not relevant_metrics:
+            return 0
+        return sum(m["duration"] for m in relevant_metrics) / len(relevant_metrics)
+
+performance_monitor = PerformanceMonitor()
+
+# Cache configuration
+CACHE_SIZE = 1000
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
+
+@lru_cache(maxsize=CACHE_SIZE)
+def get_cached_response(question: str) -> Optional[str]:
+    return None  # Implement actual caching logic
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
@@ -25,19 +69,34 @@ if os.path.exists(DB_DIR):
 DOC_PATH = "scraped_html/hash_lookup.txt"
 loader = TextLoader(DOC_PATH, encoding="utf-8")
 documents = loader.load()
-splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=100)
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=CHUNK_SIZE,
+    chunk_overlap=CHUNK_OVERLAP,
+    length_function=len,
+    separators=["\n\n", "\n", " ", ""]
+)
 chunks = splitter.split_documents(documents)
 
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
-# Create or load vector store
-if os.path.exists(DB_DIR):
-    vectordb = Chroma(persist_directory=DB_DIR, embedding_function=embedding_model)
-    print("[INFO] VectorStore loaded from disk.")
-else:
-    vectordb = Chroma.from_documents(chunks, embedding=embedding_model, persist_directory=DB_DIR)
-    print("[INFO] VectorStore created and persisted.")
+def initialize_vectorstore():
+    start_time = time.time()
+    try:
+        if os.path.exists(DB_DIR):
+            vectordb = Chroma(persist_directory=DB_DIR, embedding_function=embedding_model)
+            logger.info("VectorStore loaded from disk")
+        else:
+            vectordb = Chroma.from_documents(chunks, embedding=embedding_model, persist_directory=DB_DIR)
+            logger.info("VectorStore created and persisted")
+        
+        duration = time.time() - start_time
+        performance_monitor.record_metric("vectorstore_init", duration)
+        return vectordb
+    except Exception as e:
+        logger.error(f"Error initializing vector store: {str(e)}")
+        raise
 
+vectordb = initialize_vectorstore()
 
 app = FastAPI()
 
@@ -63,29 +122,53 @@ class ChatPayload(BaseModel):
     url_data : Optional[Dict] = None 
 
 @app.post("/ask")
-def ask(payload: ChatPayload):
-    last_question = next((msg.text for msg in reversed(payload.chat_history) if msg.role == "user"), None)
-    if not last_question:
-        return {"answer": "No question found in chat history."}
+async def ask(payload: ChatPayload):
+    start_time = time.time()
+    
+    try:
+        if cached_response := get_cached_response(str(payload)):
+            logger.info("Cache hit for question")
+            return {"answer": cached_response}
 
-    history_context = "\n".join([f"{msg.role.capitalize()}: {msg.text}" for msg in payload.chat_history])
+        last_question = next((msg.text for msg in reversed(payload.chat_history) if msg.role == "user"), None)
+        if not last_question:
+            raise HTTPException(status_code=400, detail="No question found in chat history")
 
-    retriever = vectordb.as_retriever()
-    relevant_docs = retriever.invoke(last_question)
+        history_context = "\n".join([f"{msg.role.capitalize()}: {msg.text}" for msg in payload.chat_history]) if payload.chat_history else ""
 
-    model = genai.GenerativeModel("models/gemini-2.0-flash")
+        retriever = vectordb.as_retriever(
+            search_type="mmr",  
+            search_kwargs={
+                "k": 5,
+                "fetch_k": 20,
+                "lambda_mult": 0.5
+            }
+        )
+        
+        relevant_docs = retriever.invoke(last_question)
+        
+        reranked_docs = sorted(
+            relevant_docs,
+            key=lambda x: x.metadata.get("score", 0),
+            reverse=True
+        )
 
-    scan_results = payload.scan_results or {}
-    file_info = payload.file_info or {}
-    process_info = payload.process_info or {}
-    sanitized_info = payload.sanitized_info or {}
-    sandbox_data = payload.sandbox_data or {}
-    url_data = payload.url_data or {}
+        model = genai.GenerativeModel("models/gemini-2.0-flash")
 
-    verdicts = ', '.join(process_info.get("verdicts", [])) if process_info.get("verdicts") else "None"
-    lang = detect(last_question)
+        scan_results = payload.scan_results or {}
+        file_info = payload.file_info or {}
+        process_info = payload.process_info or {}
+        sanitized_info = payload.sanitized_info or {}
+        sandbox_data = payload.sandbox_data or {}
+        url_data = payload.url_data or {}
 
-    scan_context = f"""  
+        scan_context = ""
+        
+        if any([file_info, scan_results, process_info, sanitized_info, sandbox_data, url_data]):
+            scan_context = "Available Context Information:\n"
+            
+            if file_info:
+                scan_context += f"""  
 File Name: {file_info.get('display_name', 'Unknown')}
 File Size: {file_info.get('file_size', 'Unknown')} bytes
 File Type: {file_info.get('file_type_description', 'Unknown')} 
@@ -97,8 +180,8 @@ File ID: {file_info.get('file_id', 'Unknown')}
 Data ID: {file_info.get('data_id', 'Unknown')}
 """
 
-    if scan_results:
-       scan_context += f"""
+            if scan_results:
+                scan_context += f"""
 Overall Scan Result: {scan_results.get('scan_all_result_a', 'Unknown')}
 Total AV Engines Scanned: {scan_results.get('total_avs', 'Unknown')}
 Total Threats Detected: {scan_results.get('total_detected_avs', 'Unknown')}
@@ -107,23 +190,24 @@ Scanning Duration: {scan_results.get('total_time', 'Unknown')} ms
 Scan Progress: {scan_results.get('progress_percentage', 'Unknown')}%
 """
 
-    if sanitized_info:
-       scan_context += f"""
+            if sanitized_info:
+                scan_context += f"""
 Sanitization Result: {sanitized_info.get('result', 'Unknown')}
 Sanitized File Link: {sanitized_info.get('file_path', 'Unavailable')}
 Sanitization Progress: {sanitized_info.get('progress_percentage', 'Unknown')}%
 """
 
-    if process_info:
-       scan_context += f"""
+            if process_info:
+                verdicts = ', '.join(process_info.get("verdicts", [])) if process_info.get("verdicts") else "None"
+                scan_context += f"""
 Process Info Result: {process_info.get('result', 'Unknown')}
 Profile Used: {process_info.get('profile', 'Unknown')}
 Verdicts: {verdicts}
 """
 
-    if sandbox_data:
-       final_verdict = sandbox_data.get('final_verdict', {})
-       scan_context += f"""
+            if sandbox_data:
+                final_verdict = sandbox_data.get('final_verdict', {})
+                scan_context += f"""
 Sandbox Scan Engine: {sandbox_data.get('scan_with', 'Unknown')}
 Sandbox Final Verdict: {final_verdict.get('verdict', 'Unknown')}
 Threat Level: {final_verdict.get('threatLevel', 'Unknown')}
@@ -131,16 +215,16 @@ Confidence Score: {final_verdict.get('confidence', 'Unknown')}
 Sandbox Report Link: {sandbox_data.get('store_at', 'Unavailable')}
 """
 
-    if url_data:
-       lookup_results = url_data.get("lookup_results", {})
-       address = url_data.get("address", "Unknown")
-       start_time = lookup_results.get("start_time", "Unknown")
-       detected_by = lookup_results.get("detected_by", "Unknown")
-       sources = lookup_results.get("sources", [])
+            if url_data:
+                lookup_results = url_data.get("lookup_results", {})
+                address = url_data.get("address", "Unknown")
+                start_time = lookup_results.get("start_time", "Unknown")
+                detected_by = lookup_results.get("detected_by", "Unknown")
+                sources = lookup_results.get("sources", [])
 
-       sources_summary = ""
-       for src in sources:
-          sources_summary += f"""
+                sources_summary = ""
+                for src in sources:
+                    sources_summary += f"""
 Provider: {src.get('provider', 'N/A')}
 Assessment: {src.get('assessment', 'N/A')}
 Category: {src.get('category', 'N/A')}
@@ -148,62 +232,55 @@ Status Code: {src.get('status', 'N/A')}
 Update Time: {src.get('update_time', 'N/A')}
 """
 
-       scan_context += f"""
+                scan_context += f"""
 Scanned URL: {address}
 URL Lookup Start Time: {start_time}
 AV Engines Detected: {detected_by}
 URL Source Reports:{sources_summary}
 """
 
-    doc_context = "\n\n".join([doc.page_content for doc in relevant_docs]) if relevant_docs else ""
+        lang = detect(last_question)
 
-    general_prompt = f"""
-    You are OPSWAT's advanced cybersecurity assistant, trained to provide comprehensive, highly detailed, and accurate answers based on your extensive knowledge of the company's products, services, and industry standards. You should always provide well-structured, technical, and clear responses, particularly for questions related to security, cybersecurity threats, and OPSWAT solutions.
+        doc_context = "\n\n".join([doc.page_content for doc in reranked_docs]) if reranked_docs else ""
 
-    Respond with clarity, precision, and context, leveraging the conversation history below. If the answer involves security threats, file analysis, or scanning results, ensure the response is based on the latest, relevant data, explaining technical terms when necessary. If the question is outside the domain of cybersecurity, offer helpful answers to the best of your ability.
+        prompt = f"""You are OPSWAT's advanced cybersecurity assistant. Please provide a detailed answer to the following question.
 
-    Please ensure your answers are as informative as possible and consider every bit of provided context.
+Question: {last_question}
 
-    --- CONVERSATION HISTORY ---
-    {history_context}
-    --- END HISTORY ---
+"""
+        if history_context:
+            prompt += f"""
+Chat History:
+{history_context}
+"""
 
-    QUESTION: {last_question}
-    """
+        if doc_context:
+            prompt += f"""
+Relevant Documentation:
+{doc_context}
+"""
 
-    context_prompt = f"""
-    You are OPSWAT's assistant specialized in providing cybersecurity documentation. Your goal is to extract the most relevant answers using the context provided below, which includes critical details about security analysis, scan results, and other technical information. If the answer cannot be found in the context, explicitly state that the information is not available.
+        if scan_context:
+            prompt += f"""
+Analysis Context:
+{scan_context}
+"""
 
-    Make sure to focus on giving answers that are specific, accurate, and adhere to cybersecurity best practices, as this is crucial for the user. Ensure clarity and technical correctness in your response.
+        response = model.generate_content(prompt)
+        
+        duration = time.time() - start_time
+        performance_monitor.record_metric("total_request", duration)
+        
+        return {"answer": response.text}
+        
+    except Exception as e:
+        logger.error(f"Error processing request: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    Use only the following context for your answer and give thorough explanations when required.
-
-    --- CONVERSATION HISTORY ---
-    {history_context}
-    --- END HISTORY ---
-
-    --- CONTEXT START ---
-    {scan_context}
-
-    {doc_context}
-    --- CONTEXT END ---
-
-    QUESTION: {last_question}
-
-    Answer thoroughly, using the most relevant data available, and include technical language when needed. If the answer is not directly available, do not guess; instead, say: "The answer is not available in the provided documentation and scan data."
-    """
-
-  
-    if doc_context or scan_context:
-        response = model.generate_content(context_prompt)
-
-       
-        if response.text.strip() == "The answer is not available in the provided documentation and scan data.":
-            print("Fallback triggered. Using general OPSWAT-style response.")
-            response = model.generate_content(general_prompt)
-    else:
-        print("No relevant documents or scan data. Using general model response.")
-        response = model.generate_content(general_prompt)
-
-    # Răspunsul se va adapta limbei detectate
-    return {"answer": response.text}
+@app.get("/metrics")
+async def get_metrics():
+    return {
+        "average_request_time": performance_monitor.get_average_duration("total_request"),
+        "average_vectorstore_init_time": performance_monitor.get_average_duration("vectorstore_init"),
+        "total_requests": len([m for m in performance_monitor.metrics if m["operation"] == "total_request"])
+    }
