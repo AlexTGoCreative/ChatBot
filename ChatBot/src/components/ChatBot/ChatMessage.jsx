@@ -1,6 +1,11 @@
 import ChatbotIcon from "./ChatbotIcon";
+import InitialMessage from "./InitialMessage";
 
-const ChatMessage = ({ chat }) => {
+const ChatMessage = ({ chat, isFirstMessage }) => {
+  if (isFirstMessage && chat.role === "model") {
+    return <InitialMessage />;
+  }
+
   return (
     !chat.hideInChat && (
       <div className={`message ${chat.role === "model" ? "bot" : "user"}-message ${chat.isError ? "error" : ""}`}>

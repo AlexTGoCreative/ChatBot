@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ChatbotIcon from "./ChatbotIcon";
 import ChatForm from "./ChatForm";
 import ChatMessage from "./ChatMessage";
+import InitialMessage from "./InitialMessage";
 import "./Chatbot.css";
 import axios from 'axios';
 
@@ -100,10 +101,11 @@ const Chatbot = ({ Data, onSelectHistory }) => {
 
   const generateBotResponse = async (history) => {
     const updateHistory = (text, isError = false) => {
-      setChatHistory((prev) => [
-        ...prev.filter((msg) => msg.text !== "Thinking..."),
-        { role: "model", text, isError },
-      ]);
+      setChatHistory((prev) => {
+        const newHistory = [...prev];
+        newHistory[newHistory.length - 1] = { role: "model", text, isError };
+        return newHistory;
+      });
     };
 
     const requestOptions = {
@@ -485,14 +487,13 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         )}
 
         <div ref={chatBodyRef} className="chat-body">
-          <div className="message bot-message">
-            <ChatbotIcon />
-            <p className="message-text">
-              Hey there 👋 <br /> How can I help you today?
-            </p>
-          </div>
+          <InitialMessage />
           {chatHistory.map((chat, index) => (
-            <ChatMessage key={index} chat={chat} />
+            <ChatMessage 
+              key={index} 
+              chat={chat} 
+              isFirstMessage={false}
+            />
           ))}
         </div>
 

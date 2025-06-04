@@ -31,18 +31,25 @@ class PerformanceMonitor:
         self.metrics = []
 
     def record_metric(self, operation: str, duration: float):
-        self.metrics.append({
-            "timestamp": datetime.now().isoformat(),
-            "operation": operation,
-            "duration": duration
-        })
-        if len(self.metrics) > 1000:  
-            self.metrics = self.metrics[-1000:]
+        """Record a performance metric ensuring duration is a float"""
+        try:
+            # Ensure duration is a float
+            duration_float = float(duration) if duration is not None else 0.0
+            
+            self.metrics.append({
+                "timestamp": datetime.now().isoformat(),
+                "operation": operation,
+                "duration": duration_float
+            })
+            if len(self.metrics) > 1000:  
+                self.metrics = self.metrics[-1000:]
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid duration value for {operation}: {duration}, error: {e}")
 
     def get_average_duration(self, operation: str) -> float:
         relevant_metrics = [m for m in self.metrics if m["operation"] == operation]
         if not relevant_metrics:
-            return 0
+            return 0.0
         return sum(m["duration"] for m in relevant_metrics) / len(relevant_metrics)
 
 performance_monitor = PerformanceMonitor()
@@ -80,7 +87,7 @@ chunks = splitter.split_documents(documents)
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 def initialize_vectorstore():
-    start_time = time.time()
+    start_time = time.time()  # This returns a float
     try:
         if os.path.exists(DB_DIR):
             vectordb = Chroma(persist_directory=DB_DIR, embedding_function=embedding_model)
@@ -89,7 +96,7 @@ def initialize_vectorstore():
             vectordb = Chroma.from_documents(chunks, embedding=embedding_model, persist_directory=DB_DIR)
             logger.info("VectorStore created and persisted")
         
-        duration = time.time() - start_time
+        duration = time.time() - start_time  # Both are floats now
         performance_monitor.record_metric("vectorstore_init", duration)
         return vectordb
     except Exception as e:
@@ -123,7 +130,7 @@ class ChatPayload(BaseModel):
 
 @app.post("/ask")
 async def ask(payload: ChatPayload):
-    start_time = time.time()
+    start_time = time.time()  # Ensure this is a float
     
     try:
         if cached_response := get_cached_response(str(payload)):
@@ -181,6 +188,7 @@ Data ID: {file_info.get('data_id', 'Unknown')}
 """
 
             if scan_results:
+                # Fix potential string values that should be numbers
                 scan_context += f"""
 Overall Scan Result: {scan_results.get('scan_all_result_a', 'Unknown')}
 Total AV Engines Scanned: {scan_results.get('total_avs', 'Unknown')}
@@ -218,7 +226,7 @@ Sandbox Report Link: {sandbox_data.get('store_at', 'Unavailable')}
             if url_data:
                 lookup_results = url_data.get("lookup_results", {})
                 address = url_data.get("address", "Unknown")
-                start_time = lookup_results.get("start_time", "Unknown")
+                start_time_url = lookup_results.get("start_time", "Unknown")  # Renamed to avoid conflict
                 detected_by = lookup_results.get("detected_by", "Unknown")
                 sources = lookup_results.get("sources", [])
 
@@ -234,12 +242,17 @@ Update Time: {src.get('update_time', 'N/A')}
 
                 scan_context += f"""
 Scanned URL: {address}
-URL Lookup Start Time: {start_time}
+URL Lookup Start Time: {start_time_url}
 AV Engines Detected: {detected_by}
 URL Source Reports:{sources_summary}
 """
 
-        lang = detect(last_question)
+        # Detect language safely
+        try:
+            lang = detect(last_question)
+        except Exception as e:
+            logger.warning(f"Language detection failed: {e}")
+            lang = "en"  # Default to English
 
         doc_context = "\n\n".join([doc.page_content for doc in reranked_docs]) if reranked_docs else ""
 
@@ -268,13 +281,23 @@ Analysis Context:
 
         response = model.generate_content(prompt)
         
-        duration = time.time() - start_time
+        # Ensure both times are floats before subtraction
+        end_time = time.time()
+        duration = end_time - start_time
         performance_monitor.record_metric("total_request", duration)
         
         return {"answer": response.text}
         
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
+        # Still try to record metrics even on error
+        try:
+            end_time = time.time()
+            duration = end_time - start_time
+            performance_monitor.record_metric("failed_request", duration)
+        except Exception as metric_error:
+            logger.warning(f"Failed to record error metrics: {metric_error}")
+        
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/metrics")
@@ -282,5 +305,6 @@ async def get_metrics():
     return {
         "average_request_time": performance_monitor.get_average_duration("total_request"),
         "average_vectorstore_init_time": performance_monitor.get_average_duration("vectorstore_init"),
-        "total_requests": len([m for m in performance_monitor.metrics if m["operation"] == "total_request"])
+        "total_requests": len([m for m in performance_monitor.metrics if m["operation"] == "total_request"]),
+        "failed_requests": len([m for m in performance_monitor.metrics if m["operation"] == "failed_request"])
     }
