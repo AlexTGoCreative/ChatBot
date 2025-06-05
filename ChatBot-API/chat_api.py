@@ -69,9 +69,17 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or "AIzaSyDmsf6rzcUXcFLt2JG1YyAGSR0
 genai.configure(api_key=GOOGLE_API_KEY)
 
 DB_DIR = "chroma_db"
-if os.path.exists(DB_DIR):
-    shutil.rmtree(DB_DIR)
-    print("[WARNING] Existing Chroma DB deleted due to embedding size mismatch.")
+
+
+def should_rebuild_db():
+    
+    meta_path = os.path.join(DB_DIR, "meta.json")
+    if not os.path.exists(meta_path):
+        return True
+    with open(meta_path) as f:
+        meta = json.load(f)
+    return meta.get("model_name") != "sentence-transformers/all-mpnet-base-v2"
+
     
 DOC_PATH = "scraped_html/hash_lookup.txt"
 loader = TextLoader(DOC_PATH, encoding="utf-8")
