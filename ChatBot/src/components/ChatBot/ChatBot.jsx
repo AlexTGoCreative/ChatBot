@@ -3,8 +3,9 @@ import ChatbotIcon from "./ChatbotIcon";
 import ChatForm from "./ChatForm";
 import ChatMessage from "./ChatMessage";
 import InitialMessage from "./InitialMessage";
-import "./Chatbot.css";
+import "./ChatBot.css";
 import axios from 'axios';
+import { api } from "../../utils/api";
 
 const Chatbot = ({ Data, onSelectHistory }) => {
   const chatBodyRef = useRef();
@@ -16,24 +17,55 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   const [showChatHistoryDropdown, setShowChatHistoryDropdown] = useState(false);
   const [localData, setLocalData] = useState(Data || {});
   const [selectedChatHistoryId, setSelectedChatHistoryId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [userInitiatedScan, setUserInitiatedScan] = useState(false);
 
   const { ScanningData, SandboxData, UrlScanData } = localData;
   const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100 || UrlScanData?.lookup_results?.start_time;
 
   useEffect(() => {
     setLocalData(Data || {});
+    if (Data && (Data.ScanningData || Data.UrlScanData)) {
+      setUserInitiatedScan(true);
+    }
   }, [Data]);
 
   useEffect(() => {
-    const savedScans = JSON.parse(localStorage.getItem("scanHistory") || "[]");
-    const savedChats = JSON.parse(localStorage.getItem("chatHistories") || "[]");
-    setScanHistory(savedScans);
-    setSavedChatHistories(savedChats);
-  }, []);
+    const loadChatHistories = async () => {
+      try {
+        const histories = await api.getChatHistory();
+        setSavedChatHistories(histories);
+      } catch (error) {
+        console.error('Failed to load chat histories:', error);
+      }
+    };
+
+    if (showChatbot) {
+      loadChatHistories();
+    }
+  }, [showChatbot]);
 
   useEffect(() => {
-    if (scanCompleted) {
-      const timestamp = new Date().toLocaleString();
+    const loadScanHistory = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/scan-history', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        setScanHistory(response.data);
+      } catch (error) {
+        console.error('Failed to load scan history:', error);
+      }
+    };
+
+    if (showChatbot) {
+      loadScanHistory();
+    }
+  }, [showChatbot]);
+
+  useEffect(() => {
+    if (scanCompleted && userInitiatedScan) {
       let newEntry;
 
       if (ScanningData) {
@@ -44,8 +76,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         const verdict = ScanningData?.process_info?.verdicts?.[0] || "No verdict available";
 
         newEntry = {
-          id: Date.now(),
-          timestamp,
+          timestamp: new Date(),
           type: "file",
           displayName,
           verdict,
@@ -58,8 +89,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         const sources = UrlScanData?.lookup_results?.sources || [];
 
         newEntry = {
-          id: Date.now(),
-          timestamp,
+          timestamp: new Date(),
           type: "url",
           displayName: address,
           sources,
@@ -68,36 +98,32 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       }
 
       if (newEntry) {
-        setScanHistory((prev) => {
-          const isDuplicate = prev.some((entry) => {
-            if (newEntry.type === "file" && entry.type === "file") {
-              return entry.displayName === newEntry.displayName && entry.sha1 === newEntry.sha1;
-            } else if (newEntry.type === "url" && entry.type === "url") {
-              return entry.address === newEntry.address;
+        // Save to backend
+        axios.post('http://localhost:5000/scan-history', newEntry, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+        .then(response => {
+          setScanHistory(prev => [response.data, ...prev]);
+          
+          setChatHistory((prev) => {
+            const message = ScanningData ? "The file was scanned successfully." : "The URL was scanned successfully.";
+            const alreadyAdded = prev.some((msg) => msg.text === message);
+            if (!alreadyAdded) {
+              return [...prev, { role: "model", text: message }];
             }
-            return false;
-          });
-
-          if (isDuplicate) {
             return prev;
-          }
-
-          const updated = [...prev, newEntry];
-          localStorage.setItem("scanHistory", JSON.stringify(updated));
-          return updated;
+          });
+        })
+        .catch(error => {
+          console.error('Failed to save scan history:', error);
         });
 
-        setChatHistory((prev) => {
-          const message = ScanningData ? "The file was scanned successfully." : "The URL was scanned successfully.";
-          const alreadyAdded = prev.some((msg) => msg.text === message);
-          if (!alreadyAdded) {
-            return [...prev, { role: "model", text: message }];
-          }
-          return prev;
-        });
+        setUserInitiatedScan(false);
       }
     }
-  }, [scanCompleted, ScanningData, UrlScanData]);
+  }, [scanCompleted, ScanningData, UrlScanData, userInitiatedScan]);
 
   const generateBotResponse = async (history) => {
     const updateHistory = (text, isError = false) => {
@@ -153,142 +179,144 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         const sandboxId = entry.sandboxId;
 
         if (dataId) {
-          const fileResponse = await axios.get(`http://localhost:5000/scan/${dataId}`);
+          const fileResponse = await axios.get(`http://localhost:5000/scan/${dataId}`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
           newScanningData = fileResponse.data;
         }
 
-        if (sandboxId && sha1) {
-          const sandboxResponse = await axios.get(`http://localhost:5000/sandbox/${sha1}`);
+        if (sha1 && sandboxId) {
+          const sandboxResponse = await axios.get(`http://localhost:5000/sandbox/${sha1}`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
           newSandboxData = sandboxResponse.data;
         }
       } else if (entry.type === "url") {
-        const address = entry.address;
-        const encodedUrl = encodeURIComponent(address);
-        const urlResponse = await axios.get(
-          `http://localhost:5000/scan-url-direct?encodedUrl=${encodedUrl}`,
-          {
-            headers: { apikey: import.meta.env.VITE_MD_API_KEY },
+        const encodedUrl = encodeURIComponent(entry.address);
+        const urlResponse = await axios.get(`http://localhost:5000/scan-url-direct?encodedUrl=${encodedUrl}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
           }
-        );
+        });
         newUrlScanData = urlResponse.data;
       }
 
       setLocalData({
-        ScanningData: newScanningData || null,
-        SandboxData: newSandboxData || null,
-        UrlScanData: newUrlScanData || null,
+        ScanningData: newScanningData,
+        SandboxData: newSandboxData,
+        UrlScanData: newUrlScanData,
       });
 
       onSelectHistory?.({
-        ScanningData: newScanningData || null,
-        SandboxData: newSandboxData || null,
-        UrlScanData: newUrlScanData || null,
+        ScanningData: newScanningData,
+        SandboxData: newSandboxData,
+        UrlScanData: newUrlScanData,
+      });
+
+      setChatHistory((prev) => {
+        const message = entry.type === "file" 
+          ? `The file "${entry.displayName}" details was loaded from scan history.`
+          : `The URL "${entry.displayName}" details was loaded from scan history.`;
+        return [...prev, { role: "model", text: message }];
       });
 
     } catch (error) {
-      console.error("Error in handleSelectScanHistory:", error);
+      console.error("Error fetching scan data:", error);
+      setChatHistory((prev) => {
+        return [...prev, { 
+          role: "model", 
+          text: "Error loading scan data from history.", 
+          isError: true 
+        }];
+      });
     }
   };
 
   const handleSelectChatHistory = (entry) => {
-    if (chatHistory.length > 0) {
-      const timestamp = new Date().toLocaleString();
-      setSavedChatHistories((prev) => {
-        let updated;
-        if (selectedChatHistoryId) {
-          updated = prev.map((item) =>
-            item.id === selectedChatHistoryId
-              ? {
-                  ...item,
-                  timestamp,
-                  messages: chatHistory,
-                  ScanningData: ScanningData || null,
-                  SandboxData: SandboxData || null,
-                  UrlScanData: UrlScanData || null,
-                }
-              : item
-          );
-        } else {
-          const newEntry = {
-            id: Date.now(),
-            timestamp,
-            messages: chatHistory,
-            ScanningData: ScanningData || null,
-            SandboxData: SandboxData || null,
-            UrlScanData: UrlScanData || null,
-          };
-          updated = [...prev, newEntry];
-        }
-        localStorage.setItem("chatHistories", JSON.stringify(updated));
-        return updated;
-      });
-    }
-
     setShowChatHistoryDropdown(false);
     setShowScanDropdown(false);
-    setChatHistory(entry.messages);
+    
+    const convertedMessages = entry.messages.map(msg => ({
+      role: msg.type === 'user' ? 'user' : 'model',
+      text: msg.content
+    }));
+    
+    setChatHistory(convertedMessages);
     setLocalData({
-      ScanningData: entry.ScanningData || null,
-      SandboxData: entry.SandboxData || null,
-      UrlScanData: entry.UrlScanData || null,
+      ScanningData: entry.scanData || null,
+      SandboxData: entry.sandboxData || null,
+      UrlScanData: entry.urlData || null,
     });
-    setSelectedChatHistoryId(entry.id);
+    setSelectedChatHistoryId(entry._id);
     onSelectHistory?.({
-      ScanningData: entry.ScanningData || null,
-      SandboxData: entry.SandboxData || null,
-      UrlScanData: entry.UrlScanData || null,
+      ScanningData: entry.scanData || null,
+      SandboxData: entry.sandboxData || null,
+      UrlScanData: entry.urlData || null,
     });
   };
 
-  const handleClearScanHistory = () => {
-    localStorage.removeItem("scanHistory");
-    setScanHistory([]);
+  const handleClearScanHistory = async () => {
+    try {
+      await axios.delete('http://localhost:5000/scan-history', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setScanHistory([]);
+    } catch (error) {
+      console.error('Failed to clear scan history:', error);
+    }
   };
 
-  const handleClearChatHistory = () => {
-    localStorage.removeItem("chatHistories");
-    setSavedChatHistories([]);
-    setSelectedChatHistoryId(null);
+  const handleClearChatHistory = async () => {
+    try {
+      setIsLoading(true);
+      await api.deleteChatHistory();
+      setSavedChatHistories([]);
+      setSelectedChatHistoryId(null);
+      setChatHistory([]);
+      setLocalData({});
+    } catch (error) {
+      console.error('Failed to clear chat histories:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSaveChatHistory = () => {
+  const handleSaveChatHistory = async () => {
     if (chatHistory.length === 0) return;
+    setIsLoading(true);
 
-    const timestamp = new Date().toLocaleString();
-    setSavedChatHistories((prev) => {
-      let updated;
-      if (selectedChatHistoryId) {
-        updated = prev.map((entry) =>
-          entry.id === selectedChatHistoryId
-            ? {
-                ...entry,
-                timestamp,
-                messages: chatHistory,
-                ScanningData: ScanningData || null,
-                SandboxData: SandboxData || null,
-                UrlScanData: UrlScanData || null,
-              }
-            : entry
-        );
-      } else {
-        const newEntry = {
-          id: Date.now(),
-          timestamp,
-          messages: chatHistory,
-          ScanningData: ScanningData || null,
-          SandboxData: SandboxData || null,
-          UrlScanData: UrlScanData || null,
-        };
-        updated = [...prev, newEntry];
-      }
-      localStorage.setItem("chatHistories", JSON.stringify(updated));
-      return updated;
-    });
+    try {
+      const messages = chatHistory.map(msg => ({
+        type: msg.role === 'user' ? 'user' : 'bot',
+        content: msg.text
+      }));
 
-    setChatHistory([]);
-    setLocalData({});
-    setSelectedChatHistoryId(null);
-    onSelectHistory?.({});
+      const historyData = {
+        messages,
+        scanData: ScanningData || null,
+        sandboxData: SandboxData || null,
+        urlData: UrlScanData || null
+      };
+
+      const savedHistory = await api.saveChatHistory(historyData);
+      
+      setSavedChatHistories(prev => [savedHistory, ...prev]);
+
+      setChatHistory([]);
+      setLocalData({});
+      setSelectedChatHistoryId(null);
+      onSelectHistory?.({});
+    } catch (error) {
+      console.error('Failed to save chat history:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getDisplayInfo = (entry) => {
@@ -369,20 +397,11 @@ const Chatbot = ({ Data, onSelectHistory }) => {
                 history
               </button>
               <button 
-                onClick={() => {
-                  handleSaveChatHistory();
-                  setShowScanDropdown(false);
-                  setShowChatHistoryDropdown(false);
-                }}
+                onClick={handleSaveChatHistory}
+                disabled={isLoading || chatHistory.length === 0}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  aria-hidden="true"
-                  data-slot="icon"
-                  role="button"
-                  tabIndex="0"
-                  style={{ background: 'transparent' }}
                 >
                   <path
                     fillRule="evenodd"
@@ -428,14 +447,14 @@ const Chatbot = ({ Data, onSelectHistory }) => {
                     const { name, fullName, verdict, color } = getDisplayInfo(entry);
                     return (
                       <tr
-                        key={entry.id}
+                        key={entry._id}
                         className="scan-history-entry"
                         onClick={() => handleSelectScanHistory(entry)}
                       >
                         <td title={fullName} className={`scan-history-cell-${color}`}>
                           {name}
                         </td>
-                        <td title={entry.timestamp || "N/A"}>{entry.timestamp || "N/A"}</td>
+                        <td title={entry.timestamp || "N/A"}>{new Date(entry.timestamp).toLocaleString() || "N/A"}</td>
                         <td title={verdict} className={`scan-history-cell-${color}`}>
                           {verdict}
                         </td>
@@ -467,16 +486,17 @@ const Chatbot = ({ Data, onSelectHistory }) => {
                 </thead>
                 <tbody>
                   {savedChatHistories.map((entry) => {
-                    const messagePreview = entry.messages.slice(-1)[0]?.text || "No messages";
-                    const truncatedMessage = messagePreview.length > 25 ? `${messagePreview.substring(0, 25)}...` : messagePreview;
+                    const lastMessage = entry.messages[entry.messages.length - 1]?.content || "No messages";
+                    const truncatedMessage = lastMessage.length > 25 ? `${lastMessage.substring(0, 25)}...` : lastMessage;
+                    const timestamp = new Date(entry.lastUpdated).toLocaleString();
                     return (
                       <tr
-                        key={entry.id}
+                        key={entry._id}
                         className="chat-history-entry"
                         onClick={() => handleSelectChatHistory(entry)}
                       >
-                        <td title={entry.timestamp || "N/A"}>{entry.timestamp || "N/A"}</td>
-                        <td title={messagePreview}>{truncatedMessage}</td>
+                        <td title={timestamp}>{timestamp}</td>
+                        <td title={lastMessage}>{truncatedMessage}</td>
                       </tr>
                     );
                   })}

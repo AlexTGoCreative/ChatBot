@@ -10,7 +10,7 @@ const ChatMessage = ({ chat, isFirstMessage }) => {
     !chat.hideInChat && (
       <div className={`message ${chat.role === "model" ? "bot" : "user"}-message ${chat.isError ? "error" : ""}`}>
         {chat.role === "model" && <ChatbotIcon />}
-        <p className="message-text">{chat.text}</p>
+        <div className="message-text">{chat.text}</div>
       </div>
     )
   );
