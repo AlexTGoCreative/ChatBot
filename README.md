@@ -1,166 +1,222 @@
+# 🤖 Advanced Gemini-Powered ChatBot with RAG Pipeline
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Python](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)](https://www.python.org/)
 
-# 🤖 Gemini ChatBot with OPSWAT Documentation (RAG-Powered)
+## 📑 Overview
 
-A full-stack chatbot built with **Vite + React (JavaScript)** and a **Python (FastAPI)** backend and **Node.js** backend.  
-The chatbot uses **Gemini 1.5 API** and a **Retrieval-Augmented Generation (RAG)** pipeline to answer technical questions based on **OPSWAT documentation**.
+A sophisticated full-stack chatbot application that revolutionizes cybersecurity analysis by combining the power of Google's Gemini 1.5 LLM with OPSWAT's MetaDefender technology. This intelligent system leverages advanced Retrieval-Augmented Generation (RAG) to provide context-aware responses while offering comprehensive file and URL analysis through MetaDefender's robust security features.
 
----
+### 🛡️ MetaDefender Integration
+The chatbot seamlessly integrates with OPSWAT's MetaDefender platform to provide:
 
-## 🚀 Features
+- **Multi-scanning Engine Analysis**: Leverages 30+ anti-malware engines for comprehensive threat detection
+- **Advanced File Analysis**: Deep inspection of files for potential threats and vulnerabilities
+- **Content Disarm and Reconstruction (CDR)**: Sanitizes files by removing potentially malicious content
+- **Proactive DLP Controls**: Prevents data leaks and ensures compliance
+- **URL Reputation Checking**: Evaluates URL safety and reputation scores
+- **Dynamic Unpacking**: Analyzes archived and compressed files
+- **Detailed Threat Intelligence**: Provides comprehensive reports on detected threats
 
-- 🔍 **RAG Pipeline**: Combines vector search with LLM generation for accurate, context-aware answers.
-- 📄 **Web Scraping**: Dynamically fetches OPSWAT documentation.
-- 💬 **Chat Interface**: Clean and responsive UI powered by React and Vite.
-- ⚡ **FastAPI Python Backend**: Handles certain parts of the application, such as scraping and embedding vector search.
-- ⚡ **Node.js Backend**: Manages requests and interactions with the Gemini API, as well as hash-based scan data context.
-- 🔑 **Gemini 1.5 Integration**: Uses Google's LLM to interpret queries and generate responses.
-- 🧠 **Direct File Scan (Drag and Drop)**: Users can now upload files directly via drag-and-drop or input a URL for scanning.
-- 🌐 **URL Scan**: A text box allows users to enter a URL that will be scanned for relevant content.
+### 🎯 Key Objectives
+- Provide accurate, context-aware responses to technical queries about cybersecurity
+- Deliver enterprise-grade file analysis through MetaDefender integration
+- Enable secure URL scanning and threat detection
+- Maintain high performance while handling complex security operations
+- Ensure reliable and secure data handling with industry-standard protocols
 
----
+## 🌟 Core Features
 
-## 🧠 What is RAG?
+### 🔍 Advanced RAG Implementation
+- **Vector Search Integration**: Utilizes ChromaDB for efficient similarity search
+- **Dynamic Context Retrieval**: Real-time document fetching based on query relevance
+- **Intelligent Response Generation**: Combines retrieved context with Gemini 1.5's capabilities
 
-**Retrieval-Augmented Generation (RAG)** is a technique where:
-1. Relevant documents are **retrieved** from a vector database based on a query.
-2. These documents are **augmented** as context and passed to an LLM.
-3. The LLM **generates** a grounded and relevant response.
+### 🖥️ Modern Web Interface
+- **Responsive Design**: Seamless experience across all devices
+- **Real-time Updates**: Instant feedback and response generation
+- **Drag-and-Drop Interface**: Intuitive file upload functionality
+- **URL Analysis**: Direct URL input for content scanning
 
-In this project, the OPSWAT docs are vectorized and used to provide context to Gemini.
+### ⚡ Dual Backend Architecture
+- **FastAPI (Python)**
+  - Handles document processing and vector operations
+  - Manages RAG pipeline components
+  - Provides high-performance API endpoints
 
-Additionally, users can **upload a file via drag and drop** or **enter a URL** to retrieve and scan its content for more context in the chatbot's responses.
+- **Node.js Backend**
+  - Manages Gemini API interactions
+  - Processes file scan operations
+  - Handles real-time data streaming
 
----
+## 🛠️ Technical Architecture
 
-## 📦 Tech Stack
-
-| Component        | Technology                                                                 |
-|------------------|-----------------------------------------------------------------------------|
-| 🧑‍💻 Frontend       | React (Vite), Tailwind CSS, axios                                   |
-| ⚙️ Backend        | FastAPI (Python 3.10), uvicorn                                                 |
-| 🤖 LLM API        | Gemini 1.5 via `google-generativeai`                                          |
-| 🧠 Embeddings     | sentence-transformers, HuggingFace                                             |
-| 📚 Retrieval/RAG  | Langchain, ChromaDB                                                           |
-| 🔍 Context Search | ChromaDB (persistent vector store)                                            |
-| 🧪 Data           | Scan results (CDR, DLLs, threat classes) from Meatdefender platform           |
-| 🌐 Communication  | REST APIs (JSON-based)                                                        |
-| 🛠 Tooling        | Python-dotenv, Pydantic, transformers, torch                                 |
-
-
----
-
-## 🛠️ Installation & Setup
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/AlexTGoCreative/ChatBot
-cd chatbot-gemini-opswat
+### Frontend Stack
+```typescript
+{
+  "framework": "React 18+ with Vite",
+  "styling": "Tailwind CSS",
+  "state-management": "React Context + Hooks",
+  "http-client": "axios",
+  "build-tool": "Vite"
+}
 ```
 
----
-
-### 2. Frontend Setup
-
-```bash
-npm install
-```
-
-You can start the frontend later with:
-
-```bash
-npm run dev
-```
-
----
-
-### 3. Backend Setup (Python - FastAPI)
-
-> Make sure you have **Python 3.10** installed.
-
-```bash
-py -3.10 -m venv venv
-venv\Scripts\Activate        # Windows
-# source venv/bin/activate   # macOS/Linux
-
-pip install -r requirements.txt
-```
-
----
-
-### 4. Scrape OPSWAT Documentation
-
-Before starting the backend, scrape the documentation and build the vector store:
-
-```bash
-python scraping_hash_lookup.py
-```
-
-This script:
-- Downloads content from OPSWAT docs.
-- Processes and vectorizes the content.
-- Saves the embeddings locally for use in RAG.
-
----
-
-### 5. Start Backend (FastAPI Python)
-
-```bash
-uvicorn chat_api:app --reload 
-```
-
-This starts the Python backend
-
----
-
-### 6. Backend Setup (Node.js)
-
-```bash
-npm install
-```
-
-Then start the Node.js backend with:
-
-```bash
-npm start
-```
-
-This will start the Node.js backend, which handles the Gemini API interactions and scan data lookups.
-
----
-
-### 7. Start Frontend
-
-```bash
-npm run dev
-```
-
-Now you can open the chatbot in your browser and start asking technical questions!
-
----
-
-## 🧑‍💻 New Scan Features
-
-Users can now scan files or URLs in the chatbot:
-
-### **Drag-and-Drop File Upload**  
-There is now a drag-and-drop area in the chat interface where users can upload files directly for scanning.
-
-### **URL Scan**  
-A text box allows users to input a URL to be scanned for relevant information.
-
-Once a file is uploaded or a URL is provided, the chatbot will process the content and generate accurate, context-aware responses.
-
----
-
-## 🔐 Environment Variables
-
-In **ChatBot-API/chat_api.py** (Node.js backend):
-
+### Backend Stack
 ```python
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or "API_KEY"
-genai.configure(api_key=GOOGLE_API_KEY)
+{
+  "api_framework": "FastAPI",
+  "runtime": "Python 3.10+",
+  "server": "uvicorn (ASGI)",
+  "vector_store": "ChromaDB",
+  "embeddings": "sentence-transformers",
+  "llm": "Gemini 1.5"
+}
 ```
 
+### Node.js Components
+```javascript
+{
+  "runtime": "Node.js",
+  "framework": "Express",
+  "file_handling": "multer",
+  "async_processing": "async/await"
+}
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Python 3.10+
+- Node.js 16+
+- npm/yarn
+- Git
+
+### Quick Start
+
+1. **Clone & Setup**
+   ```bash
+   git clone https://github.com/AlexTGoCreative/ChatBot
+   cd ChatBot
+   ```
+
+2. **Frontend Installation**
+   ```bash
+   cd ChatBot-Frontend
+   npm install
+   npm run dev
+   ```
+
+3. **Python Backend Setup**
+   ```bash
+   cd ChatBot-Backend
+   python -m venv venv
+   source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+   pip install -r requirements.txt
+   ```
+
+4. **Initialize Vector Store**
+   ```bash
+   python scraping_hash_lookup.py
+   ```
+
+5. **Start Python Backend**
+   ```bash
+   uvicorn chat_api:app --reload
+   ```
+
+6. **Node.js Backend Setup**
+   ```bash
+   cd ChatBot-Backend
+   npm install
+   npm start
+   ```
+
+## 🔧 Configuration
+
+### Environment Variables
+Create `.env` files in both backend directories:
+
+```env
+# Python Backend (.env)
+GOOGLE_API_KEY=your_gemini_api_key
+VECTOR_STORE_PATH=./vector_store
+
+# Node.js Backend (.env)
+PORT=3000
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+## 🧠 RAG Pipeline Architecture
+
+```mermaid
+graph LR
+    A[User Query] --> B[Vector Search]
+    B --> C[Context Retrieval]
+    C --> D[Gemini 1.5 LLM]
+    D --> E[Response Generation]
+    E --> F[User Interface]
+```
+
+## 🔍 File Analysis Features
+
+### MetaDefender Security Operations
+- **Multi-layered Analysis**
+  - File type verification and true type detection
+  - Multi-scanning with 30+ anti-malware engines
+  - Vulnerability assessment
+  - File reputation checking
+  
+- **Content Security**
+  - Advanced Content Disarm and Reconstruction (CDR)
+  - Archive extraction and analysis
+  - Document sanitization
+  - Executable analysis
+
+- **URL Security**
+  - Real-time URL scanning
+  - Reputation database checking
+  - Phishing detection
+  - SSL certificate validation
+  
+- **Threat Intelligence**
+  - Detailed threat reports
+  - MITRE ATT&CK mapping
+  - Threat classification
+  - Risk scoring
+
+### Security Measures
+- File type validation through MetaDefender
+- Size limitations based on enterprise standards
+- Secure file handling with sanitization
+- Sanitized user inputs
+- Real-time threat monitoring
+- Quarantine capabilities for suspicious files
+
+## 📈 Performance Optimization
+
+- **Caching**: Implemented for frequently accessed data
+- **Lazy Loading**: Used for component and resource loading
+- **Connection Pooling**: Optimized database connections
+- **Rate Limiting**: Prevents API abuse
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Google Gemini team for the powerful LLM API
+- OPSWAT for comprehensive documentation
+- Open-source community for various tools and libraries
+
 ---
+
+<div align="center">
+Made with ❤️ by the ChatBot Team
+</div>

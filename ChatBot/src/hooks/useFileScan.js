@@ -3,6 +3,7 @@ import useSWR, { useSWRConfig } from 'swr';
 import axios from 'axios';
 
 const MD_API_KEY = import.meta.env.VITE_METADEFENDER_API_KEY;
+const API_URL = import.meta.env.VITE_API2_URL;
 
 const fetcher = url => axios.get(url, {
   headers: {
@@ -28,10 +29,10 @@ export function useFileScan(scanSource, user) {
     setScanError(null);
     setSandboxData(null);
     setUrlData(null);
-    cache.clear(); // Clear SWR cache
+    cache.clear();
   }, [user?.id, cache]);
 
-  const url = hash ? `http://localhost:5000/scan/${hash}` : null;
+  const url = hash ? `${API_URL}/scan/${hash}` : null;
   const cachedData = url ? cache.get(url) : null;
   const isCachedComplete = cachedData?.scan_results?.progress_percentage === 100 || false;
 
@@ -49,7 +50,6 @@ export function useFileScan(scanSource, user) {
       refreshInterval: data?.scan_results?.progress_percentage === 100 ? 0 : 5000,
       revalidateOnFocus: false,
       onSuccess: async (newData) => {
-        // Only process data if it's for the current user
         if (!user) return;
 
         console.log('New Data:', newData);
@@ -64,7 +64,7 @@ export function useFileScan(scanSource, user) {
 
           if (sandboxId && sha1) {
             try {
-              const sandboxRes = await axios.get(`http://localhost:5000/sandbox/${sha1}`, {
+              const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
                 headers: {
                   apikey: MD_API_KEY,
                   Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -85,7 +85,6 @@ export function useFileScan(scanSource, user) {
   );
 
   const startScan = async () => {
-    // Don't start scan if no user
     if (!user) return;
 
     try {
@@ -101,7 +100,7 @@ export function useFileScan(scanSource, user) {
       if (scanSource.type === 'file') {
         const formData = new FormData();
         formData.append('file', scanSource.value);
-        response = await axios.post('http://localhost:5000/scan-file', formData, {
+        response = await axios.post(`${API_URL}/scan-file`, formData, {
           headers: { 
             apikey: MD_API_KEY,
             Authorization: `Bearer ${localStorage.getItem('token')}` 
@@ -111,7 +110,7 @@ export function useFileScan(scanSource, user) {
         setHash(hash);
       } else if (scanSource.type === 'url') {
         const encodedUrl = encodeURIComponent(scanSource.value);
-        const response = await axios.get(`http://localhost:5000/scan-url-direct?encodedUrl=${encodedUrl}`, {
+        const response = await axios.get(`${API_URL}/scan-url-direct?encodedUrl=${encodedUrl}`, {
           headers: { 
             apikey: MD_API_KEY,
             Authorization: `Bearer ${localStorage.getItem('token')}` 

@@ -1,90 +1,143 @@
-const API_URL = 'http://localhost:5000';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API2_URL;
+
+const getHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : '',
+  };
+};
 
 export const api = {
   login: async (credentials) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Login failed');
+    try {
+      const response = await axios.post(`${API_URL}/auth/login`, credentials, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Login failed');
     }
-    
-    return response.json();
   },
 
   register: async (userData) => {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Registration failed');
+    try {
+      const response = await axios.post(`${API_URL}/auth/register`, userData, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Registration failed');
     }
-    
-    return response.json();
   },
 
-  // Helper function to get headers with auth token
-  getHeaders: () => {
-    const token = localStorage.getItem('token');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : '',
-    };
-  },
-
-  // Chat history endpoints
   getChatHistory: async () => {
-    const response = await fetch(`${API_URL}/chat-history`, {
-      method: 'GET',
-      headers: api.getHeaders(),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch chat history');
+    try {
+      const response = await axios.get(`${API_URL}/chat-history`, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch chat history');
     }
-
-    return response.json();
   },
 
   saveChatHistory: async (historyData) => {
-    const response = await fetch(`${API_URL}/chat-history`, {
-      method: 'POST',
-      headers: api.getHeaders(),
-      body: JSON.stringify(historyData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to save chat history');
+    try {
+      const chatId = historyData.chatId;
+      let response;
+      
+      if (chatId) {
+        response = await axios.put(`${API_URL}/chat-history/${chatId}`, historyData, {
+          headers: getHeaders()
+        });
+      } else {
+        response = await axios.post(`${API_URL}/chat-history`, historyData, {
+          headers: getHeaders()
+        });
+      }
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to save chat history');
     }
-
-    return response.json();
   },
 
   deleteChatHistory: async () => {
-    const response = await fetch(`${API_URL}/chat-history`, {
-      method: 'DELETE',
-      headers: api.getHeaders(),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to delete chat history');
+    try {
+      const response = await axios.delete(`${API_URL}/chat-history`, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete chat history');
     }
-
-    return response.json();
   },
+
+  getScanHistory: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/scan-history`, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch scan history');
+    }
+  },
+
+  saveScanHistory: async (scanData) => {
+    try {
+      const response = await axios.post(`${API_URL}/scan-history`, scanData, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to save scan history');
+    }
+  },
+
+  deleteScanHistory: async () => {
+    try {
+      const response = await axios.delete(`${API_URL}/scan-history`, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to clear scan history');
+    }
+  },
+
+  getScanData: async (dataId) => {
+    try {
+      const response = await axios.get(`${API_URL}/scan/${dataId}`, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch scan data');
+    }
+  },
+
+  getSandboxData: async (sha1) => {
+    try {
+      const response = await axios.get(`${API_URL}/sandbox/${sha1}`, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch sandbox data');
+    }
+  },
+
+  getUrlScanData: async (encodedUrl) => {
+    try {
+      const response = await axios.get(`${API_URL}/scan-url-direct?encodedUrl=${encodedUrl}`, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch URL scan data');
+    }
+  }
 }; 

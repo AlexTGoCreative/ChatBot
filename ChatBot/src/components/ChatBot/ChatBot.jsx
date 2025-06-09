@@ -19,16 +19,21 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   const [selectedChatHistoryId, setSelectedChatHistoryId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userInitiatedScan, setUserInitiatedScan] = useState(false);
+  const [previousScanData, setPreviousScanData] = useState(null);
 
   const { ScanningData, SandboxData, UrlScanData } = localData;
   const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100 || UrlScanData?.lookup_results?.start_time;
 
   useEffect(() => {
-    setLocalData(Data || {});
-    if (Data && (Data.ScanningData || Data.UrlScanData)) {
-      setUserInitiatedScan(true);
+    const currentScanData = JSON.stringify(Data);
+    if (currentScanData !== previousScanData) {
+      setLocalData(Data || {});
+      if (Data && (Data.ScanningData || Data.UrlScanData)) {
+        setUserInitiatedScan(true);
+      }
+      setPreviousScanData(currentScanData);
     }
-  }, [Data]);
+  }, [Data, previousScanData]);
 
   useEffect(() => {
     const loadChatHistories = async () => {
@@ -48,12 +53,8 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   useEffect(() => {
     const loadScanHistory = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/scan-history', {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        setScanHistory(response.data);
+        const history = await api.getScanHistory();
+        setScanHistory(history);
       } catch (error) {
         console.error('Failed to load scan history:', error);
       }
@@ -67,6 +68,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   useEffect(() => {
     if (scanCompleted && userInitiatedScan) {
       let newEntry;
+      let scanType = null;
 
       if (ScanningData) {
         const dataId = ScanningData?.data_id || "";
@@ -84,6 +86,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
           sha1,
           sandboxId,
         };
+        scanType = 'file';
       } else if (UrlScanData) {
         const address = UrlScanData?.address || "Unknown URL";
         const sources = UrlScanData?.lookup_results?.sources || [];
@@ -95,32 +98,43 @@ const Chatbot = ({ Data, onSelectHistory }) => {
           sources,
           address,
         };
+        scanType = 'url';
       }
 
       if (newEntry) {
-        // Save to backend
-        axios.post('http://localhost:5000/scan-history', newEntry, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        })
-        .then(response => {
-          setScanHistory(prev => [response.data, ...prev]);
-          
-          setChatHistory((prev) => {
-            const message = ScanningData ? "The file was scanned successfully." : "The URL was scanned successfully.";
-            const alreadyAdded = prev.some((msg) => msg.text === message);
-            if (!alreadyAdded) {
-              return [...prev, { role: "model", text: message }];
-            }
-            return prev;
+        api.saveScanHistory(newEntry)
+          .then(response => {
+            setScanHistory(prev => {
+              const exists = prev.some(item => 
+                (item.type === 'file' && item.dataId === newEntry.dataId) ||
+                (item.type === 'url' && item.address === newEntry.address)
+              );
+              if (!exists) {
+                return [response, ...prev];
+              }
+              return prev;
+            });
+            
+            setChatHistory((prev) => {
+              const message = scanType === 'file' ? "The file was scanned successfully." : "The URL was scanned successfully.";
+              const alreadyAdded = prev.some((msg) => msg.text === message);
+              if (!alreadyAdded) {
+                return [...prev, { role: "model", text: message }];
+              }
+              return prev;
+            });
+          })
+          .catch(error => {
+            console.error('Failed to save scan history:', error);
+            setChatHistory(prev => [...prev, { 
+              role: "model", 
+              text: "Failed to save scan history.", 
+              isError: true 
+            }]);
+          })
+          .finally(() => {
+            setUserInitiatedScan(false);
           });
-        })
-        .catch(error => {
-          console.error('Failed to save scan history:', error);
-        });
-
-        setUserInitiatedScan(false);
       }
     }
   }, [scanCompleted, ScanningData, UrlScanData, userInitiatedScan]);
@@ -174,35 +188,16 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       let newUrlScanData = null;
 
       if (entry.type === "file") {
-        const dataId = entry.dataId;
-        const sha1 = entry.sha1;
-        const sandboxId = entry.sandboxId;
-
-        if (dataId) {
-          const fileResponse = await axios.get(`http://localhost:5000/scan/${dataId}`, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-          });
-          newScanningData = fileResponse.data;
+        if (entry.dataId) {
+          newScanningData = await api.getScanData(entry.dataId);
         }
 
-        if (sha1 && sandboxId) {
-          const sandboxResponse = await axios.get(`http://localhost:5000/sandbox/${sha1}`, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-          });
-          newSandboxData = sandboxResponse.data;
+        if (entry.sha1 && entry.sandboxId) {
+          newSandboxData = await api.getSandboxData(entry.sha1);
         }
       } else if (entry.type === "url") {
         const encodedUrl = encodeURIComponent(entry.address);
-        const urlResponse = await axios.get(`http://localhost:5000/scan-url-direct?encodedUrl=${encodedUrl}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        newUrlScanData = urlResponse.data;
+        newUrlScanData = await api.getUrlScanData(encodedUrl);
       }
 
       setLocalData({
@@ -261,11 +256,7 @@ const Chatbot = ({ Data, onSelectHistory }) => {
 
   const handleClearScanHistory = async () => {
     try {
-      await axios.delete('http://localhost:5000/scan-history', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      await api.deleteScanHistory();
       setScanHistory([]);
     } catch (error) {
       console.error('Failed to clear scan history:', error);
@@ -279,7 +270,14 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       setSavedChatHistories([]);
       setSelectedChatHistoryId(null);
       setChatHistory([]);
-      setLocalData({});
+      setLocalData({
+        ScanningData: null,
+        SandboxData: null,
+        UrlScanData: null
+      });
+      setUserInitiatedScan(false);
+      setPreviousScanData(null);
+      onSelectHistory?.({});
     } catch (error) {
       console.error('Failed to clear chat histories:', error);
     } finally {
@@ -301,12 +299,18 @@ const Chatbot = ({ Data, onSelectHistory }) => {
         messages,
         scanData: ScanningData || null,
         sandboxData: SandboxData || null,
-        urlData: UrlScanData || null
+        urlData: UrlScanData || null,
+        chatId: selectedChatHistoryId
       };
 
       const savedHistory = await api.saveChatHistory(historyData);
       
-      setSavedChatHistories(prev => [savedHistory, ...prev]);
+      setSavedChatHistories(prev => {
+        if (selectedChatHistoryId) {
+          return prev.map(h => h._id === selectedChatHistoryId ? savedHistory : h);
+        }
+        return [savedHistory, ...prev];
+      });
 
       setChatHistory([]);
       setLocalData({});

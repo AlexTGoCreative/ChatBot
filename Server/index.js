@@ -134,6 +134,36 @@ app.post('/chat-history', auth, async (req, res) => {
   }
 });
 
+// === Update Chat ===
+
+app.put('/chat-history/:chatId', auth, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { messages, scanData, sandboxData, urlData } = req.body;
+
+    const chatHistory = await ChatHistory.findOne({ _id: chatId, userId: req.user.id });
+    if (!chatHistory) {
+      return res.status(404).json({ message: 'Chat history not found or unauthorized' });
+    }
+
+    const updatedChat = await ChatHistory.findByIdAndUpdate(
+      chatId,
+      {
+        messages,
+        scanData,
+        sandboxData,
+        urlData,
+        lastUpdated: new Date()
+      },
+      { new: true }
+    );
+
+    res.json(updatedChat);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.delete('/chat-history', auth, async (req, res) => {
   try {
     await ChatHistory.deleteMany({ userId: req.user.id });
