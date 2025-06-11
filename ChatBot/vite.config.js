@@ -8,11 +8,15 @@ export default defineConfig({
   server: {
     proxy: {
       '/scan': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:3000',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/scan/, '/scan'),
       },
+      '/ask': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/ask/, '/ask'),
+      },
     },
   }
-  
 });
