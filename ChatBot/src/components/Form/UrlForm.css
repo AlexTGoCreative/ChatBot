@@ -1,0 +1,131 @@
+/* UrlForm.css */
+.url-form {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 80px;
+    gap: 0;
+    user-select: none;
+  }
+  
+  .input-container {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+  }
+  
+  .url-input {
+    width: 100%;
+    padding: 12px 50px 12px 16px;
+    font-size: 0.95rem;
+    border: 1px solid #ccc;
+    border-radius: 8px 0 0 8px;
+    outline: none;
+    transition: border 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .url-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  }
+  
+  .file-label {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #2563eb;
+    transition: color 0.2s ease;
+  }
+  
+  .file-label:hover {
+    color: #1e40af;
+  }
+  
+  .file-input {
+    display: none;
+  }
+  
+  .attach-icon {
+    font-size: 20px;
+    transform: rotate(45deg);
+  }
+  
+  .submit-button {
+    background-color: #2563eb;
+    color: white;
+    font-weight: 500;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    border-radius: 0 8px 8px 0;
+    border: none;
+    transition: background-color 0.2s ease;
+  }
+  
+  .submit-button:hover {
+    background-color: #1e40af;
+  }
+  
+  .submit-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5);
+  }
+  
+  /* Media Queries for Responsive Design */
+  @media (max-width: 768px) {
+    .url-form {
+      margin-top: 40px;
+      padding: 0 16px;
+    }
+  
+    .input-container {
+      max-width: 100%;
+    }
+  
+    .url-input {
+      font-size: 0.9rem;
+      padding: 10px 45px 10px 14px;
+    }
+  
+    .submit-button {
+      font-size: 0.9rem;
+      padding: 10px 16px;
+    }
+  
+    .file-label {
+      right: 10px;
+    }
+  
+    .attach-icon {
+      font-size: 18px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .url-form {
+      margin-top: 20px;
+      padding: 0 12px;
+    }
+  
+    .url-input {
+      font-size: 0.85rem;
+      padding: 8px 40px 8px 12px;
+      border-radius: 8px 0 0 8px;
+    }
+  
+    .submit-button {
+      font-size: 0.85rem;
+      padding: 8px 12px;
+      border-radius: 0 8px 8px 0;
+    }
+  
+    .file-label {
+      right: 8px;
+    }
+  
+    .attach-icon {
+      font-size: 16px;
+    }
+  }
