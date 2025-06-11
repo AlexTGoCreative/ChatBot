@@ -12,8 +12,13 @@ export default function App() {
 
   const { data, sandboxData, UrlData, isLoading, error, isComplete } = useFileScan(scanSource, user);
 
-  const handleUrlSubmit = (url) => {
-    setScanSource({ type: "url", value: url.trim() });
+
+  const handleFormSubmit = (input) => {
+    if (typeof input === 'string') {
+      setScanSource({ type: "url", value: input.trim() });
+    } else if (input instanceof File) {
+      setScanSource({ type: "file", value: input });
+    }
   };
 
   const handleFileDrop = (files) => {
@@ -49,7 +54,7 @@ export default function App() {
         </button>
       </nav>
       <div className="app-content">
-        <UrlForm onSubmit={handleUrlSubmit} />
+        <UrlForm onSubmit={handleFormSubmit} />
         <Chatbot 
           Data={{ 
             ScanningData: data, 
