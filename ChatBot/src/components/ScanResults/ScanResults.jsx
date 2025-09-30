@@ -87,19 +87,52 @@ const ScanResults = ({
 
   const getScanEnginesResults = () => {
     if (scanType === 'url' && urlData?.scan_results) {
-      return urlData.scan_results;
+      // Handle URL scan results if they have a different structure
+      return Array.isArray(urlData.scan_results) ? urlData.scan_results : [];
     }
     
     if (scanData?.scan_results?.scan_all_result_a) {
-      return Object.entries(scanData.scan_results.scan_all_result_a).map(([name, result]) => ({
-        name,
-        verdict: result.threat_found || 'No Threats Detected',
-        threat: result.threat_found && result.threat_found.toLowerCase() !== 'no threat detected',
-        scanTime: result.scan_time,
-        defTime: result.def_time,
-        scanResult: result.scan_result_i,
-        version: result.version
-      }));
+      return Object.entries(scanData.scan_results.scan_all_result_a).map(([engineKey, result]) => {
+        // Extract proper engine name from the key or use display_name if available
+        let engineName = result.display_name || result.engine || engineKey;
+        
+        // Clean up engine name if it's numeric or not descriptive
+        if (!isNaN(engineName) || engineName === engineKey) {
+          // Try to get a more descriptive name from common mappings
+          const engineNames = {
+            '1': 'AhnLab',
+            '2': 'Avira', 
+            '3': 'Bitdefender',
+            '4': 'Bkav Pro',
+            '5': 'ClamAV',
+            '6': 'CMC',
+            '7': 'Comodo',
+            '8': 'Emsisoft',
+            '9': 'IKARUS',
+            '10': 'K7',
+            '11': 'Lionic',
+            '12': 'McAfee',
+            '13': 'NANOAV',
+            '14': 'Quick Heal',
+            '15': 'TACHYON',
+            '16': 'Varist',
+            '17': 'Xvirus Anti-Malware',
+            '18': 'Zillya',
+            '19': 'VirIT eXplorer'
+          };
+          engineName = engineNames[engineKey] || `Engine ${engineKey}`;
+        }
+        
+        return {
+          name: engineName,
+          verdict: result.threat_found || 'No Threats Detected',
+          threat: result.threat_found && result.threat_found.toLowerCase() !== 'no threat detected',
+          scanTime: result.scan_time || result.def_time,
+          defTime: result.def_time,
+          scanResult: result.scan_result_i,
+          version: result.version
+        };
+      });
     }
     
     return [];

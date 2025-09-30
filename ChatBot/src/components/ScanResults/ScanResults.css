@@ -1,16 +1,17 @@
 .scan-results {
   width: 100%;
   min-height: 100vh;
-  background: #1a1f36;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0A0F1E;
+  font-family: "Inter", sans-serif;
   color: #ffffff;
 }
 
 /* Header Styles */
 .scan-results-header {
-  background: #252b42;
-  padding: 1.5rem 0;
-  border-bottom: 1px solid #3a4059;
+  background: #111F42;
+  padding: 1rem 0;
+  border-bottom: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
@@ -31,8 +32,8 @@
 .file-icon {
   width: 60px;
   height: 60px;
-  background: #667eea;
-  border-radius: 8px;
+  background: #2563eb;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -63,7 +64,7 @@
 }
 
 .hash-value {
-  color: #64ffda;
+  color: #2563eb;
   font-family: 'Courier New', monospace;
 }
 
@@ -73,28 +74,29 @@
 }
 
 .new-scan-btn, .export-btn {
-  background: #667eea;
+  background: #2563eb;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  font-family: "Inter", sans-serif;
 }
 
 .export-btn {
   background: transparent;
-  border: 1px solid #667eea;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.new-scan-btn:hover, .export-btn:hover {
-  background: #5a6fd8;
-  transform: translateY(-1px);
+.new-scan-btn:hover {
+  background: #1e40af;
 }
 
 .export-btn:hover {
-  background: #667eea;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 /* Results Container */
@@ -107,9 +109,10 @@
 .scan-results-error {
   text-align: center;
   padding: 3rem;
-  background: #252b42;
-  border-radius: 12px;
+  background: #111F42;
+  border-radius: 8px;
   margin: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .scan-results-error h2 {
@@ -126,19 +129,19 @@
 }
 
 .status-card {
-  background: #252b42;
-  border-radius: 12px;
+  background: #111F42;
+  border-radius: 8px;
   padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  border: 1px solid #3a4059;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
 }
 
 .status-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.15);
 }
 
 .status-card.clean {
@@ -182,10 +185,10 @@
 
 /* Left Panel - Multiscanning */
 .multiscanning-section {
-  background: #252b42;
-  border-radius: 12px;
+  background: #111F42;
+  border-radius: 8px;
   padding: 1.5rem;
-  border: 1px solid #3a4059;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .section-header {
@@ -254,17 +257,17 @@
 
 /* Engines Table */
 .engines-table {
-  border: 1px solid #3a4059;
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
   overflow: hidden;
 }
 
 .table-header {
-  background: #1a1f36;
+  background: #0A0F1E;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   padding: 1rem;
-  border-bottom: 1px solid #3a4059;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .table-header > div {
@@ -283,7 +286,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #3a4059;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   transition: background 0.2s ease;
 }
 
@@ -292,7 +295,7 @@
 }
 
 .engine-row:hover {
-  background: #1a1f36;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .engine-row.clean {
@@ -331,10 +334,10 @@
 }
 
 .file-overview-section, .scan-history-section {
-  background: #252b42;
-  border-radius: 12px;
+  background: #111F42;
+  border-radius: 8px;
   padding: 1.5rem;
-  border: 1px solid #3a4059;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .file-overview-section h2, .scan-history-section h2 {
@@ -356,7 +359,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;
-  border-bottom: 1px solid #3a4059;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .overview-item:last-child {
@@ -387,20 +390,21 @@
 .value.hash {
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
-  background: #1a1f36;
+  background: #0A0F1E;
   padding: 0.5rem;
   border-radius: 4px;
-  color: #64ffda;
+  color: #2563eb;
   width: 100%;
   text-align: left;
   word-break: break-all;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .value.ssdeep {
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
   word-break: break-all;
-  color: #64ffda;
+  color: #2563eb;
 }
 
 .overview-item.full-width .value {
