@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import UrlForm from "./components/Form/UrlForm";
 import Chatbot from "./components/Chatbot/ChatBot";
 import FileDropZone from "./components/Form/FileDropZone";
+import LoadingOverlay from "./components/LoadingOverlay/LoadingOverlay";
 import { useFileScan } from "./hooks/useFileScan";
 import Auth from "./components/Auth/Auth";
 
@@ -10,7 +11,19 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
 
-  const { data, sandboxData, UrlData, isLoading, error, isComplete } = useFileScan(scanSource, user);
+  const { 
+    data, 
+    sandboxData, 
+    UrlData, 
+    isLoading, 
+    error, 
+    isComplete,
+    scanStatus,
+    scanProgress,
+    scanMessage,
+    retryScan,
+    scanType
+  } = useFileScan(scanSource, user);
 
 
   const handleFormSubmit = (input) => {
@@ -54,7 +67,7 @@ export default function App() {
         </button>
       </nav>
       <div className="app-content">
-        <UrlForm onSubmit={handleFormSubmit} />
+        <UrlForm onSubmit={handleFormSubmit} isScanning={scanStatus === 'scanning'} />
         <Chatbot 
           Data={{ 
             ScanningData: data, 
@@ -63,8 +76,17 @@ export default function App() {
           }}
           user={user}
         />
-        <FileDropZone onFileDrop={handleFileDrop} />
+        <FileDropZone onFileDrop={handleFileDrop} isScanning={scanStatus === 'scanning'} />
       </div>
+      
+      <LoadingOverlay
+        isVisible={scanStatus !== 'idle'}
+        status={scanStatus}
+        progress={scanProgress}
+        message={scanMessage}
+        onRetry={retryScan}
+        scanType={scanType}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./FileDropZone.css";
 
-const FileDropZone = ({ onFileDrop }) => {
+const FileDropZone = ({ onFileDrop, isScanning }) => {
   const [dragCounter, setDragCounter] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -9,8 +9,10 @@ const FileDropZone = ({ onFileDrop }) => {
     const handleDragEnter = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      setDragCounter((prev) => prev + 1);
-      setIsDragging(true);
+      if (!isScanning) {
+        setDragCounter((prev) => prev + 1);
+        setIsDragging(true);
+      }
     };
 
     const handleDragLeave = (e) => {
@@ -37,9 +39,11 @@ const FileDropZone = ({ onFileDrop }) => {
       setIsDragging(false);
       setDragCounter(0);
 
-      const files = Array.from(e.dataTransfer.files);
-      if (files.length > 0) {
-        onFileDrop(files);
+      if (!isScanning) {
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) {
+          onFileDrop(files);
+        }
       }
     };
 
@@ -57,8 +61,8 @@ const FileDropZone = ({ onFileDrop }) => {
   }, [onFileDrop]);
 
   return (
-    <div className={`file-drop-overlay ${isDragging ? 'active' : ''}`}>
-      {isDragging && (
+    <div className={`file-drop-overlay ${isDragging && !isScanning ? 'active' : ''}`}>
+      {isDragging && !isScanning && (
         <div className="drop-message">
           <span className="icon">🗂️</span>
           <span>Drag the file here to upload it</span>

@@ -20,6 +20,9 @@ export function useFileScan(scanSource, user) {
   const [scanError, setScanError] = useState(null);
   const [sandboxData, setSandboxData] = useState(null);
   const [UrlData, setUrlData] = useState(null);
+  const [scanStatus, setScanStatus] = useState('idle'); // 'idle', 'scanning', 'success', 'error'
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanMessage, setScanMessage] = useState('');
 
   // Clear all data when user changes (to solve cross scan problem)
   useEffect(() => {
@@ -29,6 +32,9 @@ export function useFileScan(scanSource, user) {
     setScanError(null);
     setSandboxData(null);
     setUrlData(null);
+    setScanStatus('idle');
+    setScanProgress(0);
+    setScanMessage('');
     cache.clear();
   }, [user?.id, cache]);
 
@@ -54,10 +60,27 @@ export function useFileScan(scanSource, user) {
 
         console.log('New Data:', newData);
         setData(newData);
+        
+        // Update progress and status
+        const progress = newData?.scan_results?.progress_percentage || 0;
+        setScanProgress(progress);
+        
+        if (progress < 100) {
+          setScanStatus('scanning');
+          setScanMessage(`Scanning file`);
+        }
 
-        if (newData?.scan_results?.progress_percentage === 100) {
+        if (progress === 100) {
           console.log("STOP GET");
           setIsComplete(true);
+          setScanStatus('success');
+          setScanMessage('Scan completed successfully!');
+          
+          // Auto-hide success message after 2 seconds
+          setTimeout(() => {
+            setScanStatus('idle');
+            setScanMessage('');
+          }, 2000);
 
           const sandboxId = newData?.last_sandbox_id?.[0]?.sandbox_id;
           const sha1 = newData?.file_info?.sha1;
@@ -80,6 +103,9 @@ export function useFileScan(scanSource, user) {
       },
       onError: (err) => {
         console.error('SWR Error:', err);
+        setScanStatus('error');
+        setScanMessage('Scan failed. Please try again.');
+        setScanError(err);
       },
     }
   );
@@ -88,16 +114,22 @@ export function useFileScan(scanSource, user) {
     if (!user) return;
 
     try {
+      // Reset all states
       setData(null);
       setUrlData(null);
       setHash(null);
       setIsComplete(false);
       setScanError(null);
       setSandboxData(null);
-
+      setScanProgress(0);
+      
+      // Set initial scanning state
+      setScanStatus('scanning');
+      
       let response;
 
       if (scanSource.type === 'file') {
+        setScanMessage('Uploading file...');
         const formData = new FormData();
         formData.append('file', scanSource.value);
         response = await axios.post(`${API_URL}/scan-file`, formData, {
@@ -108,7 +140,9 @@ export function useFileScan(scanSource, user) {
         });
         const { hash } = response.data;
         setHash(hash);
+        setScanMessage('Starting file scan...');
       } else if (scanSource.type === 'url') {
+        setScanMessage('Processing URL...');
         const encodedUrl = encodeURIComponent(scanSource.value);
         const response = await axios.get(`${API_URL}/scan-url-direct?encodedUrl=${encodedUrl}`, {
           headers: { 
@@ -118,10 +152,20 @@ export function useFileScan(scanSource, user) {
         });
         setUrlData(response.data);
         setIsComplete(true);
+        setScanStatus('success');
+        setScanMessage('URL scan completed successfully!');
+        
+        // Auto-hide success message after 2 seconds
+        setTimeout(() => {
+          setScanStatus('idle');
+          setScanMessage('');
+        }, 2000);
       }
     } catch (err) {
       console.error('Error during file/url scan:', err);
       setScanError(err);
+      setScanStatus('error');
+      setScanMessage('Failed to start scan. Please try again.');
     }
   };
 
@@ -131,6 +175,12 @@ export function useFileScan(scanSource, user) {
     }
   }, [scanSource, user]);
 
+  const retryScan = () => {
+    if (scanSource && scanSource.value && user) {
+      startScan();
+    }
+  };
+
   return {
     data,
     sandboxData,
@@ -139,5 +189,10 @@ export function useFileScan(scanSource, user) {
     isLoading: !data && !error && !scanError,
     isComplete,
     mutate,
+    scanStatus,
+    scanProgress,
+    scanMessage,
+    retryScan,
+    scanType: scanSource?.type,
   };
 }
