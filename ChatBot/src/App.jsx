@@ -3,6 +3,7 @@ import UrlForm from "./components/Form/UrlForm";
 import Chatbot from "./components/Chatbot/ChatBot";
 import FileDropZone from "./components/Form/FileDropZone";
 import LoadingOverlay from "./components/LoadingOverlay/LoadingOverlay";
+import ScanResults from "./components/ScanResults/ScanResults";
 import { useFileScan } from "./hooks/useFileScan";
 import Auth from "./components/Auth/Auth";
 
@@ -10,6 +11,7 @@ export default function App() {
   const [scanSource, setScanSource] = useState({ type: null, value: null });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const [showResults, setShowResults] = useState(false);
 
   const { 
     data, 
@@ -50,10 +52,36 @@ export default function App() {
     setIsAuthenticated(false);
     setUser(null);
     setScanSource({ type: null, value: null });
+    setShowResults(false);
   };
+
+  const handleNewScan = () => {
+    setScanSource({ type: null, value: null });
+    setShowResults(false);
+  };
+
+  // Show results when scan is complete
+  useEffect(() => {
+    if (isComplete && (data || UrlData)) {
+      setShowResults(true);
+    }
+  }, [isComplete, data, UrlData]);
   
   if (!isAuthenticated) {
     return <Auth onAuthSuccess={handleAuthSuccess} />;
+  }
+
+  // Show scan results if available
+  if (showResults) {
+    return (
+      <ScanResults
+        scanData={data}
+        sandboxData={sandboxData}
+        urlData={UrlData}
+        scanType={scanType}
+        onNewScan={handleNewScan}
+      />
+    );
   }
 
   return (
