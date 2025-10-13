@@ -4,20 +4,21 @@
   background: #0A0F1E;
   font-family: "Inter", sans-serif;
   color: #ffffff;
+  position: relative;
 }
 
 /* Header Styles */
 .scan-results-header {
   background: #111F42;
-  padding: 1rem 0;
+  padding: 0.75rem 0;
   border-bottom: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -30,8 +31,8 @@
 }
 
 .file-icon {
-  width: 60px;
-  height: 60px;
+  width: 48px;
+  height: 48px;
   background: #2563eb;
   border-radius: 6px;
   display: flex;
@@ -42,13 +43,13 @@
 .file-extension {
   color: white;
   font-weight: bold;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 .file-details h1 {
   color: #ffffff;
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
   font-weight: 600;
 }
 
@@ -56,7 +57,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .hash-label {
@@ -66,6 +67,7 @@
 .hash-value {
   color: #2563eb;
   font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
 }
 
 .header-actions {
@@ -77,10 +79,11 @@
   background: #2563eb;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+  font-size: 0.85rem;
   transition: all 0.2s ease;
   font-family: "Inter", sans-serif;
 }
@@ -101,9 +104,9 @@
 
 /* Results Container */
 .results-container {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .scan-results-error {
@@ -123,18 +126,18 @@
 /* Status Cards */
 .status-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .status-card {
   background: #111F42;
-  border-radius: 8px;
-  padding: 1.5rem;
+  border-radius: 6px;
+  padding: 1rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
 }
@@ -153,15 +156,20 @@
 }
 
 .status-icon {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   opacity: 0.7;
 }
 
 .status-content h3 {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.25rem 0;
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 600;
+}
+
+.status-content p {
+  margin: 0;
+  font-size: 0.8rem;
 }
 
 .status-clean {
@@ -180,14 +188,14 @@
 .main-content {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 /* Left Panel - Multiscanning */
 .multiscanning-section {
   background: #111F42;
-  border-radius: 8px;
-  padding: 1.5rem;
+  border-radius: 6px;
+  padding: 1.25rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -195,13 +203,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .section-header h2 {
   color: #ffffff;
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
@@ -212,7 +220,7 @@
 }
 
 .threat-count {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: bold;
 }
 
@@ -225,22 +233,23 @@
 }
 
 .total-engines {
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: #8892b0;
 }
 
 .engines-label {
   color: #8892b0;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 500;
   margin-left: 0.5rem;
 }
 
 .scan-status {
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  margin-bottom: 1.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
   font-weight: 500;
+  font-size: 0.85rem;
 }
 
 .scan-status.clean {
@@ -266,15 +275,16 @@
   background: #0A0F1E;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  padding: 1rem;
+  padding: 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .table-header > div {
   color: #8892b0;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .table-body {
@@ -285,9 +295,10 @@
 .engine-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   transition: background 0.2s ease;
+  font-size: 0.8rem;
 }
 
 .engine-row:last-child {
@@ -312,6 +323,13 @@
   font-weight: 500;
 }
 
+.engine-category {
+  color: #8892b0;
+  font-size: 0.7rem;
+  font-weight: 400;
+  font-style: italic;
+}
+
 .verdict.clean {
   color: #00d4aa;
 }
@@ -323,27 +341,27 @@
 
 .update-time {
   color: #8892b0;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
 }
 
 /* Right Panel */
 .right-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .file-overview-section, .scan-history-section {
   background: #111F42;
-  border-radius: 8px;
-  padding: 1.5rem;
+  border-radius: 6px;
+  padding: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .file-overview-section h2, .scan-history-section h2 {
   color: #ffffff;
-  margin: 0 0 1rem 0;
-  font-size: 1.2rem;
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -351,15 +369,16 @@
 .overview-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .overview-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0;
+  padding: 0.4rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.8rem;
 }
 
 .overview-item:last-child {
@@ -375,23 +394,24 @@
 
 .label {
   color: #8892b0;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
 .value {
   color: #ffffff;
   font-weight: 500;
+  font-size: 0.8rem;
   text-align: right;
-  max-width: 150px;
+  max-width: 130px;
   overflow-wrap: break-word;
 }
 
 .value.hash {
   font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   background: #0A0F1E;
-  padding: 0.5rem;
+  padding: 0.4rem;
   border-radius: 4px;
   color: #2563eb;
   width: 100%;
@@ -402,7 +422,7 @@
 
 .value.ssdeep {
   font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   word-break: break-all;
   color: #2563eb;
 }
@@ -412,11 +432,307 @@
   text-align: left;
 }
 
+/* Threat Information Styles */
+.value.threat {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.overview-item.threat-info {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.threat-name {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-top: 0.2rem;
+  font-weight: 500;
+}
+
+/* Sandbox Analysis Styles */
+.sandbox-section {
+  background: #1a2332;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sandbox-section h2 {
+  margin: 0 0 0.75rem 0;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.sandbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sandbox-threat-score {
+  display: flex;
+  flex-direction: column;
+}
+
+.threat-score-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #ef4444;
+  line-height: 1;
+}
+
+.threat-score-label {
+  font-size: 0.65rem;
+  color: #8892b0;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.sandbox-verdict {
+  display: flex;
+  align-items: center;
+}
+
+.verdict-badge {
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.verdict-badge.likely-malicious {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.sandbox-tags {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.sandbox-tag {
+  background: rgba(37, 99, 235, 0.2);
+  color: #2563eb;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.threat-indicators {
+  margin-bottom: 1rem;
+}
+
+.threat-indicators h3 {
+  color: #ffffff;
+  margin: 0 0 0.4rem 0;
+  font-size: 0.95rem;
+}
+
+.indicators-subtitle {
+  color: #8892b0;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.indicator-group {
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.indicator-group.likely-malicious {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.indicator-group.suspicious {
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.indicator-group.no-threats {
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.indicator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+}
+
+.indicator-group.likely-malicious .indicator-header {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.indicator-group.suspicious .indicator-header {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.indicator-group.no-threats .indicator-header {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.indicator-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.indicator-list {
+  padding: 0 1rem 1rem 1rem;
+}
+
+.indicator-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: #e2e8f0;
+}
+
+.indicator-icon {
+  font-size: 1rem;
+  margin-top: 0.1rem;
+}
+
+.indicator-text {
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.indicators-compromise {
+  margin-bottom: 1.5rem;
+}
+
+.indicators-compromise h3 {
+  color: #ffffff;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.iocs-subtitle {
+  color: #8892b0;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.iocs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ioc-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ioc-icon {
+  font-size: 1rem;
+}
+
+.ioc-label {
+  font-size: 0.85rem;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.ioc-count {
+  margin-left: auto;
+  background: rgba(37, 99, 235, 0.2);
+  color: #2563eb;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.yara-rules {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.yara-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.9rem;
+}
+
+.yara-item:last-child {
+  border-bottom: none;
+}
+
+.yara-label {
+  color: #e2e8f0;
+}
+
+.yara-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.yara-status.suspicious {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.yara-status.no-threats {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.show-more-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #8892b0;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: all 0.2s;
+}
+
+.show-more-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
 /* Scan History */
 .scan-history-info {
   color: #8892b0;
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 /* Responsive Design */
@@ -431,29 +747,109 @@
 }
 
 @media (max-width: 768px) {
+  .scan-results-header {
+    padding: 0.6rem 0;
+  }
+
   .results-container {
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   .header-content {
-    padding: 0 1rem;
+    padding: 0 0.75rem;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
     text-align: center;
   }
 
   .file-header {
     flex-direction: column;
     text-align: center;
+    gap: 0.75rem;
+  }
+
+  .file-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .file-extension {
+    font-size: 0.7rem;
+  }
+
+  .file-details h1 {
+    font-size: 1.1rem;
+  }
+
+  .hash-info {
+    justify-content: center;
+    font-size: 0.75rem;
+  }
+
+  .hash-value {
+    font-size: 0.7rem;
+  }
+
+  .header-actions {
+    flex-direction: row;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .new-scan-btn, .export-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
   }
 
   .status-cards {
     grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .status-card {
+    padding: 0.75rem;
+  }
+
+  .status-icon {
+    font-size: 1.1rem;
+  }
+
+  .status-content h3 {
+    font-size: 0.8rem;
+  }
+
+  .status-content p {
+    font-size: 0.75rem;
+  }
+
+  .main-content {
+    gap: 1rem;
+  }
+
+  .multiscanning-section, .file-overview-section, .scan-history-section, .sandbox-section {
+    padding: 1rem;
+  }
+
+  .section-header h2, .file-overview-section h2, .scan-history-section h2 {
+    font-size: 0.95rem;
+  }
+
+  .threat-count {
+    font-size: 1.3rem;
+  }
+
+  .total-engines {
+    font-size: 0.9rem;
+  }
+
+  .engines-label {
+    font-size: 0.65rem;
   }
 
   .table-header, .engine-row {
     grid-template-columns: 1fr;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    padding: 0.6rem;
   }
 
   .table-header > div {
@@ -463,6 +859,30 @@
   .engine-row {
     flex-direction: column;
     display: flex;
+    border-left: none !important;
+    background: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+  }
+
+  .engine-row.threat {
+    background: rgba(255, 107, 107, 0.08) !important;
+    border: 1px solid rgba(255, 107, 107, 0.2) !important;
+  }
+
+  .engine-name {
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .verdict {
+    font-size: 0.75rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .update-time {
+    font-size: 0.7rem;
   }
 
   .overview-grid {
@@ -473,31 +893,378 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
+    padding: 0.5rem 0;
+  }
+
+  .label {
+    font-size: 0.7rem;
   }
 
   .value {
     text-align: left;
     max-width: 100%;
+    font-size: 0.75rem;
+  }
+
+  .value.hash {
+    font-size: 0.6rem;
+    padding: 0.35rem;
+  }
+
+  .scan-history-info {
+    font-size: 0.75rem;
   }
 }
 
 @media (max-width: 480px) {
+  .scan-results-header {
+    padding: 0.5rem 0;
+  }
+
+  .results-container {
+    padding: 0.5rem;
+  }
+
+  .header-content {
+    padding: 0 0.5rem;
+    gap: 0.6rem;
+  }
+
+  .file-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .file-extension {
+    font-size: 0.65rem;
+  }
+
   .file-details h1 {
-    font-size: 1.2rem;
+    font-size: 1rem;
   }
 
   .hash-info {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    font-size: 0.7rem;
+    gap: 0.25rem;
   }
 
-  .multiscanning-section, .file-overview-section, .scan-history-section {
-    padding: 1rem;
+  .hash-value {
+    font-size: 0.65rem;
+    word-break: break-all;
+    text-align: center;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .new-scan-btn, .export-btn {
+    width: 100%;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  .status-cards {
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .status-card {
+    padding: 0.6rem;
+    gap: 0.6rem;
+  }
+
+  .status-icon {
+    font-size: 1rem;
+  }
+
+  .status-content h3 {
+    font-size: 0.75rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .status-content p {
+    font-size: 0.7rem;
+  }
+
+  .threat-name {
+    font-size: 0.7rem;
+  }
+
+  .main-content {
+    gap: 0.75rem;
+  }
+
+  .multiscanning-section, .file-overview-section, .scan-history-section, .sandbox-section {
+    padding: 0.75rem;
   }
 
   .section-header {
     flex-direction: column;
+    gap: 0.4rem;
+    text-align: center;
+    margin-bottom: 0.6rem;
+  }
+
+  .section-header h2, .file-overview-section h2, .scan-history-section h2 {
+    font-size: 0.9rem;
+  }
+
+  .threat-indicator {
+    justify-content: center;
+  }
+
+  .threat-count {
+    font-size: 1.2rem;
+  }
+
+  .total-engines {
+    font-size: 0.85rem;
+  }
+
+  .engines-label {
+    font-size: 0.6rem;
+  }
+
+  .scan-status {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.8rem;
+    text-align: center;
+  }
+
+  .table-header, .engine-row {
+    padding: 0.5rem;
+  }
+
+  .engine-row {
+    margin-bottom: 0.3rem;
+  }
+
+  .engine-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .verdict {
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  .update-time {
+    font-size: 0.65rem;
+  }
+
+  .overview-item {
+    padding: 0.4rem 0;
+  }
+
+  .label {
+    font-size: 0.65rem;
+    color: #a0a9b8;
+  }
+
+  .value {
+    font-size: 0.7rem;
+    margin-top: 0.15rem;
+  }
+
+  .value.hash {
+    font-size: 0.55rem;
+    padding: 0.3rem;
+    line-height: 1.3;
+  }
+
+  .value.threat {
+    font-weight: 600;
+  }
+
+  .sandbox-section {
+    padding: 0.75rem;
+  }
+
+  .sandbox-header {
+    flex-direction: column;
     gap: 0.5rem;
     text-align: center;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+
+  .threat-score-number {
+    font-size: 1.75rem;
+  }
+
+  .threat-score-label {
+    font-size: 0.6rem;
+  }
+
+  .verdict-badge {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.7rem;
+  }
+
+  .sandbox-tags {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .sandbox-tag {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+  }
+
+  .threat-indicators h3, .indicators-compromise h3 {
+    font-size: 0.85rem;
+  }
+
+  .indicators-subtitle, .iocs-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .scan-history-info {
+    font-size: 0.7rem;
+  }
+}
+
+/* Extra small screens (360px and below) */
+@media (max-width: 360px) {
+  .results-container {
+    padding: 0.4rem;
+  }
+
+  .header-content {
+    padding: 0 0.4rem;
+    gap: 0.5rem;
+  }
+
+  .file-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .file-extension {
+    font-size: 0.6rem;
+  }
+
+  .file-details h1 {
+    font-size: 0.9rem;
+  }
+
+  .hash-info {
+    font-size: 0.65rem;
+  }
+
+  .hash-value {
+    font-size: 0.6rem;
+  }
+
+  .new-scan-btn, .export-btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.7rem;
+  }
+
+  .status-card {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .status-content h3 {
+    font-size: 0.7rem;
+  }
+
+  .status-content p {
+    font-size: 0.65rem;
+  }
+
+  .multiscanning-section, .file-overview-section, .scan-history-section, .sandbox-section {
+    padding: 0.6rem;
+  }
+
+  .section-header h2, .file-overview-section h2, .scan-history-section h2 {
+    font-size: 0.85rem;
+  }
+
+  .threat-count {
+    font-size: 1.1rem;
+  }
+
+  .total-engines {
+    font-size: 0.8rem;
+  }
+
+  .engines-label {
+    font-size: 0.55rem;
+  }
+
+  .scan-status {
+    padding: 0.45rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .table-header, .engine-row {
+    padding: 0.45rem;
+  }
+
+  .engine-name {
+    font-size: 0.7rem;
+  }
+
+  .verdict {
+    font-size: 0.65rem;
+  }
+
+  .update-time {
+    font-size: 0.6rem;
+  }
+
+  .overview-item {
+    padding: 0.35rem 0;
+  }
+
+  .label {
+    font-size: 0.6rem;
+  }
+
+  .value {
+    font-size: 0.65rem;
+  }
+
+  .value.hash {
+    font-size: 0.5rem;
+    padding: 0.25rem;
+  }
+
+  .threat-score-number {
+    font-size: 1.5rem;
+  }
+
+  .threat-score-label {
+    font-size: 0.55rem;
+  }
+
+  .verdict-badge {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.65rem;
+  }
+
+  .sandbox-tag {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.4rem;
+  }
+
+  .threat-indicators h3, .indicators-compromise h3 {
+    font-size: 0.8rem;
+  }
+
+  .indicators-subtitle, .iocs-subtitle {
+    font-size: 0.7rem;
+  }
+
+  .scan-history-info {
+    font-size: 0.65rem;
   }
 }

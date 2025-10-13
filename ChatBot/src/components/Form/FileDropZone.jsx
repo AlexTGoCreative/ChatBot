@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./FileDropZone.css";
 
-const FileDropZone = ({ onFileDrop, isScanning }) => {
+const FileDropZone = ({ onFileDrop, isScanning, isChatbotOpen }) => {
   const [dragCounter, setDragCounter] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -61,7 +61,7 @@ const FileDropZone = ({ onFileDrop, isScanning }) => {
   }, [onFileDrop]);
 
   return (
-    <div className={`file-drop-overlay ${isDragging && !isScanning ? 'active' : ''}`}>
+    <div className={`file-drop-overlay ${isDragging && !isScanning && !isChatbotOpen ? 'active' : ''} ${isChatbotOpen ? 'chatbot-open' : ''}`}>
       {isDragging && !isScanning && (
         <div className="drop-message">
           <span className="icon">🗂️</span>

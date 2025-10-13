@@ -32,4 +32,50 @@
 
 .drop-message .icon {
   font-size: 24px;
+}
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .drop-message {
+    padding: 30px 40px;
+    font-size: 18px;
+    margin: 0 20px;
+  }
+
+  .drop-message .icon {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .drop-message {
+    padding: 20px 30px;
+    font-size: 16px;
+    margin: 0 15px;
+    border-radius: 8px;
+  }
+
+  .drop-message .icon {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 360px) {
+  .drop-message {
+    padding: 15px 20px;
+    font-size: 14px;
+    margin: 0 10px;
+    gap: 8px;
+  }
+
+  .drop-message .icon {
+    font-size: 18px;
+  }
+}
+
+/* Hide file drop zone when chatbot is open on mobile */
+@media (max-width: 767px) {
+  .file-drop-overlay.chatbot-open {
+    display: none;
+  }
 } 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import UrlForm from "./components/Form/UrlForm";
-import Chatbot from "./components/Chatbot/ChatBot";
+import ChatBot from "./components/ChatBot/ChatBot";
 import FileDropZone from "./components/Form/FileDropZone";
 import LoadingOverlay from "./components/LoadingOverlay/LoadingOverlay";
 import ScanResults from "./components/ScanResults/ScanResults";
@@ -12,6 +12,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [showResults, setShowResults] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
 
   const { 
     data, 
@@ -28,8 +29,10 @@ export default function App() {
   } = useFileScan(scanSource, user);
 
 
-  const handleFormSubmit = (input) => {
-    if (typeof input === 'string') {
+  const handleFormSubmit = (input, type) => {
+    if (type === 'hash') {
+      setScanSource({ type: "hash", value: input.trim() });
+    } else if (typeof input === 'string') {
       setScanSource({ type: "url", value: input.trim() });
     } else if (input instanceof File) {
       setScanSource({ type: "file", value: input });
@@ -60,6 +63,10 @@ export default function App() {
     setShowResults(false);
   };
 
+  const handleChatbotToggle = (isOpen) => {
+    setShowChatbot(isOpen);
+  };
+
   // Show results when scan is complete
   useEffect(() => {
     if (isComplete && (data || UrlData)) {
@@ -80,6 +87,7 @@ export default function App() {
         urlData={UrlData}
         scanType={scanType}
         onNewScan={handleNewScan}
+        user={user}
       />
     );
   }
@@ -95,16 +103,25 @@ export default function App() {
         </button>
       </nav>
       <div className="app-content">
-        <UrlForm onSubmit={handleFormSubmit} isScanning={scanStatus === 'scanning'} />
-        <Chatbot 
+        <UrlForm 
+          onSubmit={handleFormSubmit} 
+          isScanning={scanStatus === 'scanning'} 
+          isChatbotOpen={showChatbot}
+        />
+        <ChatBot 
           Data={{ 
             ScanningData: data, 
             SandboxData: sandboxData, 
             UrlScanData: UrlData 
           }}
           user={user}
+          onToggle={handleChatbotToggle}
         />
-        <FileDropZone onFileDrop={handleFileDrop} isScanning={scanStatus === 'scanning'} />
+        <FileDropZone 
+          onFileDrop={handleFileDrop} 
+          isScanning={scanStatus === 'scanning'}
+          isChatbotOpen={showChatbot}
+        />
       </div>
       
       <LoadingOverlay

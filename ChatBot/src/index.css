@@ -60,3 +60,64 @@ body {
   margin: 0 auto;
   width: 100%;
 }
+
+/* Mobile Styles for App Navigation */
+@media (max-width: 768px) {
+  .app-nav {
+    padding: 0.75rem 1rem;
+  }
+
+  .user-info {
+    font-size: 0.85rem;
+  }
+
+  .logout-button {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .app-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-nav {
+    padding: 0.6rem 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .user-info {
+    font-size: 0.8rem;
+    flex: 1;
+  }
+
+  .logout-button {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  .app-content {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-nav {
+    padding: 0.5rem;
+  }
+
+  .user-info {
+    font-size: 0.75rem;
+  }
+
+  .logout-button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
+  }
+
+  .app-content {
+    padding: 0.5rem;
+  }
+}

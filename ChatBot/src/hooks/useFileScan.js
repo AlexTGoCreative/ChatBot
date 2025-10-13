@@ -160,6 +160,43 @@ export function useFileScan(scanSource, user) {
           setScanStatus('idle');
           setScanMessage('');
         }, 2000);
+      } else if (scanSource.type === 'hash') {
+        setScanMessage('Looking up hash...');
+        const response = await axios.get(`${API_URL}/hash-lookup/${scanSource.value}`, {
+          headers: { 
+            apikey: MD_API_KEY,
+            Authorization: `Bearer ${localStorage.getItem('token')}` 
+          },
+        });
+        setData(response.data);
+        setIsComplete(true);
+        setScanStatus('success');
+        setScanMessage('Hash lookup completed successfully!');
+        
+        // Check for sandbox data if available
+        const sandboxId = response.data?.last_sandbox_id?.[0]?.sandbox_id;
+        const sha1 = response.data?.file_info?.sha1;
+
+        if (sandboxId && sha1) {
+          try {
+            const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
+              headers: {
+                apikey: MD_API_KEY,
+                Authorization: `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+            setSandboxData(sandboxRes.data);
+            console.log("Sandbox Data:", sandboxRes.data);
+          } catch (err) {
+            console.error("Error fetching sandbox data:", err);
+          }
+        }
+        
+        // Auto-hide success message after 2 seconds
+        setTimeout(() => {
+          setScanStatus('idle');
+          setScanMessage('');
+        }, 2000);
       }
     } catch (err) {
       console.error('Error during file/url scan:', err);

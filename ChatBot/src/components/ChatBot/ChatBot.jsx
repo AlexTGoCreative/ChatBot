@@ -7,7 +7,7 @@ import "./ChatBot.css";
 import axios from 'axios';
 import { api } from "../../utils/api";
 
-const Chatbot = ({ Data, onSelectHistory }) => {
+const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
   const chatBodyRef = useRef();
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
@@ -49,6 +49,13 @@ const Chatbot = ({ Data, onSelectHistory }) => {
       loadChatHistories();
     }
   }, [showChatbot]);
+
+  // Notify parent component when chatbot visibility changes
+  useEffect(() => {
+    if (onToggle) {
+      onToggle(showChatbot);
+    }
+  }, [showChatbot, onToggle]);
 
   useEffect(() => {
     const loadScanHistory = async () => {
@@ -541,4 +548,4 @@ const Chatbot = ({ Data, onSelectHistory }) => {
   );
 };
 
-export default Chatbot;
+export default ChatBot;

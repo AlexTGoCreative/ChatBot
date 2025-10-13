@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import './ScanResults.css';
+import Chatbot from '../ChatBot/ChatBot';
 
 const ScanResults = ({ 
   scanData, 
   sandboxData, 
   urlData, 
   scanType, 
-  onNewScan 
+  onNewScan,
+  user 
 }) => {
   const exportResults = () => {
     const exportData = {
@@ -34,34 +36,39 @@ const ScanResults = ({
   const getFileInfo = () => {
     if (scanType === 'url' && urlData) {
       return {
-        name: urlData.url || 'URL Scan',
+        name: urlData.address || 'URL Scan',
         type: 'URL',
         size: null,
-        sha256: urlData.hash || 'N/A',
-        extension: 'url'
+        sha256: null,
+        extension: 'url',
+        address: urlData.address,
+        domain: urlData.whois?.domain_name || null
       };
     }
     
     if (scanData?.file_info) {
       return {
         name: scanData.file_info.display_name || scanData.file_info.orig_name || 'Unknown',
-        type: scanData.file_info.file_type_description || 'Unknown',
+        type: scanData.file_info.file_type_description || scanData?.filetype_info?.file_info?.description || 'Unknown',
         size: scanData.file_info.file_size,
         sha256: scanData.file_info.sha256,
         sha1: scanData.file_info.sha1,
         md5: scanData.file_info.md5,
         extension: scanData.file_info.file_type_extension || 'unknown',
-        category: scanData.file_info.file_type_category || 'D',
-        trid: scanData.file_info.trid_description,
-        libmagic: scanData.file_info.libmagic_description,
-        magika: scanData.file_info.magika_description,
+        category: scanData.file_info.file_type_category || scanData?.filetype_info?.file_info?.groupID || 'D',
+        trid: scanData.file_info.trid_description || scanData?.filetype_info?.other_detections?.find(d => d.detector === 'TrID')?.description,
+        libmagic: scanData.file_info.libmagic_description || scanData?.filetype_info?.other_detections?.find(d => d.detector === 'libmagic')?.description,
+        magika: scanData.file_info.magika_description || scanData?.filetype_info?.other_detections?.find(d => d.detector === 'Magika')?.description,
         entropy: scanData.file_info.entropy,
         architecture: scanData.file_info.architecture,
         isDotNet: scanData.file_info.is_dotnet,
         isPacked: scanData.file_info.is_packed,
         isDigitallySigned: scanData.file_info.is_digitally_signed,
         uploadTimestamp: scanData.file_info.upload_timestamp,
-        ssdeep: scanData.file_info.ssdeep
+        ssdeep: scanData.file_info.ssdeep,
+        threatName: scanData.threat_name,
+        malwareFamily: scanData.malware_family,
+        malwareType: scanData.malware_type
       };
     }
     
@@ -69,70 +76,112 @@ const ScanResults = ({
   };
 
   const getThreatScore = () => {
-    if (scanType === 'url' && urlData) {
-      return urlData.threat_score || 0;
+    if (scanType === 'url' && urlData?.lookup_results) {
+      return urlData.lookup_results.detected_by || 0;
     }
     
-    if (scanData?.scan_results?.scan_all_result_a) {
-      const engines = Object.values(scanData.scan_results.scan_all_result_a);
-      const threatsDetected = engines.filter(engine => 
-        engine.threat_found && engine.threat_found.toLowerCase() !== 'no threat detected'
-      ).length;
+    if (scanData?.scan_results) {
+      // Handle new file scan format
+      if (scanData.scan_results.scan_details) {
+        const engines = Object.values(scanData.scan_results.scan_details);
+        const threatsDetected = engines.filter(engine => 
+          engine.threat_found && engine.threat_found.trim() !== ''
+        ).length;
+        
+        return Math.round((threatsDetected / engines.length) * 100);
+      }
       
-      return Math.round((threatsDetected / engines.length) * 100);
+      // Handle legacy format
+      if (scanData.scan_results.scan_all_result_a) {
+        const engines = Object.values(scanData.scan_results.scan_all_result_a);
+        const threatsDetected = engines.filter(engine => 
+          engine.threat_found && engine.threat_found.toLowerCase() !== 'no threat detected'
+        ).length;
+        
+        return Math.round((threatsDetected / engines.length) * 100);
+      }
     }
     
     return 0;
   };
 
   const getScanEnginesResults = () => {
-    if (scanType === 'url' && urlData?.scan_results) {
-      // Handle URL scan results if they have a different structure
-      return Array.isArray(urlData.scan_results) ? urlData.scan_results : [];
+    if (scanType === 'url' && urlData?.lookup_results?.sources) {
+      return urlData.lookup_results.sources
+        .filter(source => source.status !== 5) // Filter out sources with status 5 (not available)
+        .map(source => ({
+          name: source.provider,
+          verdict: source.assessment || 'Unknown',
+          threat: source.assessment && source.assessment.toLowerCase() !== 'trustworthy',
+          scanTime: source.update_time,
+          defTime: source.detect_time,
+          category: source.category,
+          status: source.status
+        }));
     }
     
-    if (scanData?.scan_results?.scan_all_result_a) {
-      return Object.entries(scanData.scan_results.scan_all_result_a).map(([engineKey, result]) => {
-        // Extract proper engine name from the key or use display_name if available
-        let engineName = result.display_name || result.engine || engineKey;
-        
-        // Clean up engine name if it's numeric or not descriptive
-        if (!isNaN(engineName) || engineName === engineKey) {
-          // Try to get a more descriptive name from common mappings
-          const engineNames = {
-            '1': 'AhnLab',
-            '2': 'Avira', 
-            '3': 'Bitdefender',
-            '4': 'Bkav Pro',
-            '5': 'ClamAV',
-            '6': 'CMC',
-            '7': 'Comodo',
-            '8': 'Emsisoft',
-            '9': 'IKARUS',
-            '10': 'K7',
-            '11': 'Lionic',
-            '12': 'McAfee',
-            '13': 'NANOAV',
-            '14': 'Quick Heal',
-            '15': 'TACHYON',
-            '16': 'Varist',
-            '17': 'Xvirus Anti-Malware',
-            '18': 'Zillya',
-            '19': 'VirIT eXplorer'
+    if (scanData?.scan_results) {
+      // Handle new file scan format with scan_details
+      if (scanData.scan_results.scan_details) {
+        return Object.entries(scanData.scan_results.scan_details).map(([engineName, result]) => {
+          const hasThreat = result.threat_found && result.threat_found.trim() !== '';
+          
+          return {
+            name: engineName,
+            verdict: result.threat_found || 'No Threats Detected',
+            threat: hasThreat,
+            scanTime: result.scan_time,
+            defTime: result.def_time,
+            scanResult: result.scan_result_i,
+            version: result.version
           };
-          engineName = engineNames[engineKey] || `Engine ${engineKey}`;
-        }
-        
-        return {
-          name: engineName,
-          verdict: result.threat_found || 'No Threats Detected',
-          threat: result.threat_found && result.threat_found.toLowerCase() !== 'no threat detected',
-          scanTime: result.scan_time || result.def_time,
-          defTime: result.def_time,
-          scanResult: result.scan_result_i,
-          version: result.version
-        };
-      });
+        });
+      }
+      
+      // Handle legacy format
+      if (scanData.scan_results.scan_all_result_a) {
+        return Object.entries(scanData.scan_results.scan_all_result_a).map(([engineKey, result]) => {
+          // Extract proper engine name from the key or use display_name if available
+          let engineName = result.display_name || result.engine || engineKey;
+          
+          // Clean up engine name if it's numeric or not descriptive
+          if (!isNaN(engineName) || engineName === engineKey) {
+            // Try to get a more descriptive name from common mappings
+            const engineNames = {
+              '1': 'AhnLab',
+              '2': 'Avira', 
+              '3': 'Bitdefender',
+              '4': 'Bkav Pro',
+              '5': 'ClamAV',
+              '6': 'CMC',
+              '7': 'Comodo',
+              '8': 'Emsisoft',
+              '9': 'IKARUS',
+              '10': 'K7',
+              '11': 'Lionic',
+              '12': 'McAfee',
+              '13': 'NANOAV',
+              '14': 'Quick Heal',
+              '15': 'TACHYON',
+              '16': 'Varist',
+              '17': 'Xvirus Anti-Malware',
+              '18': 'Zillya',
+              '19': 'VirIT eXplorer'
+            };
+            engineName = engineNames[engineKey] || `Engine ${engineKey}`;
+          }
+          
+          return {
+            name: engineName,
+            verdict: result.threat_found || 'No Threats Detected',
+            threat: result.threat_found && result.threat_found.toLowerCase() !== 'no threat detected',
+            scanTime: result.scan_time || result.def_time,
+            defTime: result.def_time,
+            scanResult: result.scan_result_i,
+            version: result.version
+          };
+        });
+      }
     }
     
     return [];
@@ -175,14 +224,24 @@ const ScanResults = ({
         <div className="header-content">
           <div className="file-header">
             <div className="file-icon">
-              <span className="file-extension">{fileInfo?.extension?.toUpperCase() || 'FILE'}</span>
+              <span className="file-extension">
+                {scanType === 'url' ? '🔗' : fileInfo?.extension?.toUpperCase() || 'FILE'}
+              </span>
             </div>
             <div className="file-details">
-              <h1>{fileInfo?.name || 'Unknown File'}</h1>
-              <div className="hash-info">
-                <span className="hash-label">SHA-256:</span>
-                <span className="hash-value">{fileInfo?.sha256}</span>
-              </div>
+              <h1>{fileInfo?.name || 'Unknown'}</h1>
+              {scanType === 'url' && fileInfo?.domain && (
+                <div className="hash-info">
+                  <span className="hash-label">Domain:</span>
+                  <span className="hash-value">{fileInfo.domain}</span>
+                </div>
+              )}
+              {scanType === 'file' && fileInfo?.sha256 && (
+                <div className="hash-info">
+                  <span className="hash-label">SHA-256:</span>
+                  <span className="hash-value">{fileInfo.sha256}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="header-actions">
@@ -204,54 +263,75 @@ const ScanResults = ({
               <span className="icon">🛡️</span>
             </div>
             <div className="status-content">
-              <h3>Multiscanning</h3>
+              <h3>{scanType === 'url' ? 'URL Reputation' : 'Multiscanning'}</h3>
               <p className={threatScore === 0 ? 'status-clean' : 'status-threat'}>
                 {threatScore === 0 ? 'No Threats Detected' : `${threatsFound} Threats Found`}
               </p>
+              {fileInfo?.threatName && (
+                <p className="threat-name">{fileInfo.threatName}</p>
+              )}
             </div>
           </div>
 
-          <div className="status-card sandbox">
-            <div className="status-icon">
-              <span className="icon">🔬</span>
+          {scanType === 'url' && urlData?.whois && (
+            <div className="status-card whois">
+              <div className="status-icon">
+                <span className="icon">🌐</span>
+              </div>
+              <div className="status-content">
+                <h3>WHOIS Information</h3>
+                <p className="status-neutral">
+                  {urlData.whois.registrant_organization || 'Available'}
+                </p>
+              </div>
             </div>
-            <div className="status-content">
-              <h3>Adaptive Sandbox</h3>
-              <p className="status-neutral">
-                {sandboxData ? 'Analysis Available' : 'No Results Available'}
-              </p>
-            </div>
-          </div>
+          )}
 
-          <div className="status-card cdr">
-            <div className="status-icon">
-              <span className="icon">📄</span>
-            </div>
-            <div className="status-content">
-              <h3>Deep CDR™</h3>
-              <p className="status-neutral">No Sanitization Available</p>
-            </div>
-          </div>
+          {scanType === 'file' && (
+            <>
+              <div className="status-card sandbox">
+                <div className="status-icon">
+                  <span className="icon">🔬</span>
+                </div>
+                <div className="status-content">
+                  <h3>Adaptive Sandbox</h3>
+                  <p className="status-neutral">
+                    {sandboxData ? 'Analysis Available' : 'No Results Available'}
+                  </p>
+                </div>
+              </div>
 
-          <div className="status-card dlp">
-            <div className="status-icon">
-              <span className="icon">🔒</span>
-            </div>
-            <div className="status-content">
-              <h3>Proactive DLP</h3>
-              <p className="status-neutral">No Results Available</p>
-            </div>
-          </div>
+              <div className="status-card cdr">
+                <div className="status-icon">
+                  <span className="icon">📄</span>
+                </div>
+                <div className="status-content">
+                  <h3>Deep CDR™</h3>
+                  <p className="status-neutral">No Sanitization Available</p>
+                </div>
+              </div>
 
-          <div className="status-card vulnerabilities">
-            <div className="status-icon">
-              <span className="icon">🛡️</span>
-            </div>
-            <div className="status-content">
-              <h3>Vulnerabilities</h3>
-              <p className="status-clean">No Vulnerabilities Found</p>
-            </div>
-          </div>
+              <div className="status-card dlp">
+                <div className="status-icon">
+                  <span className="icon">🔒</span>
+                </div>
+                <div className="status-content">
+                  <h3>Proactive DLP</h3>
+                  <p className="status-neutral">No Results Available</p>
+                </div>
+              </div>
+
+              <div className="status-card vulnerabilities">
+                <div className="status-icon">
+                  <span className="icon">🛡️</span>
+                </div>
+                <div className="status-content">
+                  <h3>Vulnerabilities</h3>
+                  <p className="status-clean">No Vulnerabilities Found</p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Main Content Area */}
@@ -260,13 +340,13 @@ const ScanResults = ({
             {/* Multiscanning Section */}
             <div className="multiscanning-section">
               <div className="section-header">
-                <h2>Multiscanning</h2>
+                <h2>{scanType === 'url' ? 'URL Reputation Sources' : 'Multiscanning'}</h2>
                 <div className="threat-indicator">
                   <span className={`threat-count ${threatScore === 0 ? 'clean' : 'threat'}`}>
                     {threatsFound}
                   </span>
                   <span className="total-engines">/{totalEngines}</span>
-                  <span className="engines-label">ENGINES</span>
+                  <span className="engines-label">{scanType === 'url' ? 'SOURCES' : 'ENGINES'}</span>
                 </div>
               </div>
               
@@ -276,19 +356,22 @@ const ScanResults = ({
 
               <div className="engines-table">
                 <div className="table-header">
-                  <div className="col-engine">Engine Name</div>
-                  <div className="col-verdict">Verdict</div>
-                  <div className="col-update">Last engine update</div>
+                  <div className="col-engine">{scanType === 'url' ? 'Source' : 'Engine Name'}</div>
+                  <div className="col-verdict">{scanType === 'url' ? 'Assessment' : 'Verdict'}</div>
+                  <div className="col-update">Last update</div>
                 </div>
                 <div className="table-body">
                   {engineResults.map((engine, index) => (
                     <div key={index} className={`engine-row ${engine.threat ? 'threat' : 'clean'}`}>
                       <div className="col-engine">
                         <span className="engine-name">{engine.name}</span>
+                        {scanType === 'url' && engine.category && (
+                          <span className="engine-category"> ({engine.category})</span>
+                        )}
                       </div>
                       <div className="col-verdict">
                         <span className={`verdict ${engine.threat ? 'threat' : 'clean'}`}>
-                          {engine.verdict}
+                          {engine.verdict || 'Unknown'}
                         </span>
                       </div>
                       <div className="col-update">
@@ -304,135 +387,395 @@ const ScanResults = ({
           </div>
 
           <div className="right-panel">
-            {/* File Overview */}
-            <div className="file-overview-section">
-              <h2>File Overview</h2>
-              
-              <div className="overview-grid">
-                <div className="overview-item">
-                  <span className="label">Category</span>
-                  <span className="value">{fileInfo?.category || 'D'}</span>
-                </div>
+            {/* URL WHOIS Information or File Overview */}
+            {scanType === 'url' && urlData?.whois ? (
+              <div className="file-overview-section">
+                <h2>WHOIS Information</h2>
                 
-                <div className="overview-item">
-                  <span className="label">File Type</span>
-                  <span className="value">{fileInfo?.type || 'Unknown'}</span>
-                </div>
-                
-                <div className="overview-item">
-                  <span className="label">File Extension</span>
-                  <span className="value">{fileInfo?.extension || 'unknown'}</span>
-                </div>
-                
-                {fileInfo?.trid && (
-                  <div className="overview-item">
-                    <span className="label">TrID</span>
-                    <span className="value">{fileInfo.trid}</span>
-                  </div>
-                )}
-                
-                {fileInfo?.libmagic && (
-                  <div className="overview-item">
-                    <span className="label">LibMagic</span>
-                    <span className="value">{fileInfo.libmagic}</span>
-                  </div>
-                )}
-                
-                {fileInfo?.magika && (
-                  <div className="overview-item">
-                    <span className="label">Magika</span>
-                    <span className="value">{fileInfo.magika}</span>
-                  </div>
-                )}
-                
-                {fileInfo?.size && (
-                  <div className="overview-item">
-                    <span className="label">File Size</span>
-                    <span className="value">{formatFileSize(fileInfo.size)}</span>
-                  </div>
-                )}
-                
-                {fileInfo?.uploadTimestamp && (
-                  <div className="overview-item">
-                    <span className="label">Uploaded</span>
-                    <span className="value">{formatDate(fileInfo.uploadTimestamp)}</span>
-                  </div>
-                )}
-                
-                {fileInfo?.ssdeep && (
+                <div className="overview-grid">
                   <div className="overview-item full-width">
-                    <span className="label">SSDEEP</span>
-                    <span className="value ssdeep">{fileInfo.ssdeep}</span>
+                    <span className="label">URL</span>
+                    <span className="value">{urlData.address}</span>
                   </div>
-                )}
-                
-                {fileInfo?.architecture && (
+                  
                   <div className="overview-item">
-                    <span className="label">Architecture</span>
-                    <span className="value">{fileInfo.architecture}</span>
+                    <span className="label">Domain Name</span>
+                    <span className="value">{urlData.whois.domain_name || 'N/A'}</span>
                   </div>
-                )}
-                
-                {fileInfo?.isDotNet !== undefined && (
-                  <div className="overview-item">
-                    <span className="label">Is DotNet</span>
-                    <span className="value">{fileInfo.isDotNet ? 'Yes' : 'No'}</span>
-                  </div>
-                )}
-                
-                {fileInfo?.isPacked !== undefined && (
-                  <div className="overview-item">
-                    <span className="label">Is Packed</span>
-                    <span className="value">{fileInfo.isPacked ? 'Yes' : 'No'}</span>
-                  </div>
-                )}
-                
-                {fileInfo?.isDigitallySigned !== undefined && (
-                  <div className="overview-item">
-                    <span className="label">Is Digitally Signed</span>
-                    <span className="value">{fileInfo.isDigitallySigned ? 'Yes' : 'No'}</span>
-                  </div>
-                )}
-                
-                {fileInfo?.entropy && (
-                  <div className="overview-item">
-                    <span className="label">Entropy</span>
-                    <span className="value">{fileInfo.entropy}</span>
-                  </div>
-                )}
-                
-                {scanData?.scan_results?.scan_time && (
-                  <div className="overview-item">
-                    <span className="label">Scanned</span>
-                    <span className="value">{formatDate(scanData.scan_results.scan_time)}</span>
-                  </div>
-                )}
-                
-                <div className="overview-item full-width">
-                  <span className="label">MD5</span>
-                  <span className="value hash">{fileInfo?.md5 || 'N/A'}</span>
-                </div>
-                
-                <div className="overview-item full-width">
-                  <span className="label">SHA-1</span>
-                  <span className="value hash">{fileInfo?.sha1 || 'N/A'}</span>
-                </div>
-                
-                <div className="overview-item full-width">
-                  <span className="label">SHA-256</span>
-                  <span className="value hash">{fileInfo?.sha256 || 'N/A'}</span>
+                  
+                  {urlData.whois.registrant_organization && (
+                    <div className="overview-item">
+                      <span className="label">Organization</span>
+                      <span className="value">{urlData.whois.registrant_organization}</span>
+                    </div>
+                  )}
+                  
+                  {urlData.whois.registrant_country && (
+                    <div className="overview-item">
+                      <span className="label">Country</span>
+                      <span className="value">{urlData.whois.registrant_country}</span>
+                    </div>
+                  )}
+                  
+                  {urlData.whois.create_date && (
+                    <div className="overview-item">
+                      <span className="label">Created Date</span>
+                      <span className="value">{urlData.whois.create_date}</span>
+                    </div>
+                  )}
+                  
+                  {urlData.whois.expire_date && (
+                    <div className="overview-item">
+                      <span className="label">Expiration Date</span>
+                      <span className="value">{urlData.whois.expire_date}</span>
+                    </div>
+                  )}
+                  
+                  {urlData.whois.reg_update_date && (
+                    <div className="overview-item">
+                      <span className="label">Last Updated</span>
+                      <span className="value">{urlData.whois.reg_update_date}</span>
+                    </div>
+                  )}
+                  
+                  {urlData.whois.registrar_name && (
+                    <div className="overview-item">
+                      <span className="label">Registrar</span>
+                      <span className="value">{urlData.whois.registrar_name}</span>
+                    </div>
+                  )}
+                  
+                  {urlData.whois.name_servers && (
+                    <div className="overview-item full-width">
+                      <span className="label">Name Servers</span>
+                      <span className="value">{urlData.whois.name_servers}</span>
+                    </div>
+                  )}
+                  
+                  {urlData.whois.registrant_email && (
+                    <div className="overview-item full-width">
+                      <span className="label">Contact Email</span>
+                      <span className="value">{urlData.whois.registrant_email}</span>
+                    </div>
+                  )}
+                  
+                  {urlData.lookup_results?.start_time && (
+                    <div className="overview-item">
+                      <span className="label">Scan Time</span>
+                      <span className="value">{formatDate(urlData.lookup_results.start_time)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="file-overview-section">
+                <h2>File Overview</h2>
+                
+                <div className="overview-grid">
+                  {fileInfo?.threatName && (
+                    <div className="overview-item full-width threat-info">
+                      <span className="label">Threat Name</span>
+                      <span className="value threat">{fileInfo.threatName}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.malwareFamily && (
+                    <div className="overview-item">
+                      <span className="label">Malware Family</span>
+                      <span className="value threat">{fileInfo.malwareFamily}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.malwareType && Array.isArray(fileInfo.malwareType) && (
+                    <div className="overview-item">
+                      <span className="label">Malware Type</span>
+                      <span className="value threat">{fileInfo.malwareType.join(', ')}</span>
+                    </div>
+                  )}
+                  
+                  <div className="overview-item">
+                    <span className="label">Category</span>
+                    <span className="value">{fileInfo?.category || 'D'}</span>
+                  </div>
+                  
+                  <div className="overview-item">
+                    <span className="label">File Type</span>
+                    <span className="value">{fileInfo?.type || 'Unknown'}</span>
+                  </div>
+                  
+                  <div className="overview-item">
+                    <span className="label">File Extension</span>
+                    <span className="value">{fileInfo?.extension || 'unknown'}</span>
+                  </div>
+                  
+                  {fileInfo?.trid && (
+                    <div className="overview-item">
+                      <span className="label">TrID</span>
+                      <span className="value">{fileInfo.trid}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.libmagic && (
+                    <div className="overview-item">
+                      <span className="label">LibMagic</span>
+                      <span className="value">{fileInfo.libmagic}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.magika && (
+                    <div className="overview-item">
+                      <span className="label">Magika</span>
+                      <span className="value">{fileInfo.magika}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.size && (
+                    <div className="overview-item">
+                      <span className="label">File Size</span>
+                      <span className="value">{formatFileSize(fileInfo.size)}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.uploadTimestamp && (
+                    <div className="overview-item">
+                      <span className="label">Uploaded</span>
+                      <span className="value">{formatDate(fileInfo.uploadTimestamp)}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.ssdeep && (
+                    <div className="overview-item full-width">
+                      <span className="label">SSDEEP</span>
+                      <span className="value ssdeep">{fileInfo.ssdeep}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.architecture && (
+                    <div className="overview-item">
+                      <span className="label">Architecture</span>
+                      <span className="value">{fileInfo.architecture}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.isDotNet !== undefined && (
+                    <div className="overview-item">
+                      <span className="label">Is DotNet</span>
+                      <span className="value">{fileInfo.isDotNet ? 'Yes' : 'No'}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.isPacked !== undefined && (
+                    <div className="overview-item">
+                      <span className="label">Is Packed</span>
+                      <span className="value">{fileInfo.isPacked ? 'Yes' : 'No'}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.isDigitallySigned !== undefined && (
+                    <div className="overview-item">
+                      <span className="label">Is Digitally Signed</span>
+                      <span className="value">{fileInfo.isDigitallySigned ? 'Yes' : 'No'}</span>
+                    </div>
+                  )}
+                  
+                  {fileInfo?.entropy && (
+                    <div className="overview-item">
+                      <span className="label">Entropy</span>
+                      <span className="value">{fileInfo.entropy}</span>
+                    </div>
+                  )}
+                  
+                  {scanData?.scan_results?.scan_time && (
+                    <div className="overview-item">
+                      <span className="label">Scanned</span>
+                      <span className="value">{formatDate(scanData.scan_results.scan_time)}</span>
+                    </div>
+                  )}
+                  
+                  <div className="overview-item full-width">
+                    <span className="label">MD5</span>
+                    <span className="value hash">{fileInfo?.md5 || 'N/A'}</span>
+                  </div>
+                  
+                  <div className="overview-item full-width">
+                    <span className="label">SHA-1</span>
+                    <span className="value hash">{fileInfo?.sha1 || 'N/A'}</span>
+                  </div>
+                  
+                  <div className="overview-item full-width">
+                    <span className="label">SHA-256</span>
+                    <span className="value hash">{fileInfo?.sha256 || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sandbox Analysis */}
+            {sandboxData && (
+              <div className="sandbox-section">
+                <h2>Sandbox Analysis</h2>
+                
+                <div className="sandbox-header">
+                  <div className="sandbox-threat-score">
+                    <span className="threat-score-number">{sandboxData.threat_score || 75}</span>
+                    <span className="threat-score-label">/100 THREAT SCORE</span>
+                  </div>
+                  <div className="sandbox-verdict">
+                    <span className="verdict-badge likely-malicious">Likely Malicious</span>
+                  </div>
+                </div>
+
+                <div className="sandbox-tags">
+                  {sandboxData.tags && sandboxData.tags.map((tag, index) => (
+                    <span key={index} className="sandbox-tag">{tag}</span>
+                  ))}
+                </div>
+
+                {sandboxData.threat_indicators && (
+                  <div className="threat-indicators">
+                    <h3>Threat Indicators</h3>
+                    <p className="indicators-subtitle">Key indicators and MITRE ATT&CK techniques</p>
+                    
+                    {sandboxData.threat_indicators.likely_malicious && (
+                      <div className="indicator-group likely-malicious">
+                        <div className="indicator-header">
+                          <span className="indicator-label">Likely Malicious Indicators</span>
+                          <span className="indicator-count">{sandboxData.threat_indicators.likely_malicious.length}</span>
+                        </div>
+                        <div className="indicator-list">
+                          {sandboxData.threat_indicators.likely_malicious.map((indicator, index) => (
+                            <div key={index} className="indicator-item">
+                              <span className="indicator-icon">⚠️</span>
+                              <span className="indicator-text">{indicator.description || indicator}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {sandboxData.threat_indicators.suspicious && (
+                      <div className="indicator-group suspicious">
+                        <div className="indicator-header">
+                          <span className="indicator-label">Suspicious Indicators</span>
+                          <span className="indicator-count">{sandboxData.threat_indicators.suspicious.length}</span>
+                        </div>
+                        <div className="indicator-list">
+                          {sandboxData.threat_indicators.suspicious.map((indicator, index) => (
+                            <div key={index} className="indicator-item">
+                              <span className="indicator-icon">🔶</span>
+                              <span className="indicator-text">{indicator.description || indicator}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {sandboxData.threat_indicators.no_threats && (
+                      <div className="indicator-group no-threats">
+                        <div className="indicator-header">
+                          <span className="indicator-label">No Threat Indicators</span>
+                          <span className="indicator-count">{sandboxData.threat_indicators.no_threats.length}</span>
+                        </div>
+                        <div className="indicator-list">
+                          {sandboxData.threat_indicators.no_threats.slice(0, 2).map((indicator, index) => (
+                            <div key={index} className="indicator-item">
+                              <span className="indicator-icon">✅</span>
+                              <span className="indicator-text">{indicator.description || indicator}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {sandboxData.threat_indicators.no_threats.length > 2 && (
+                          <button className="show-more-btn">+ {sandboxData.threat_indicators.no_threats.length - 2} more indicators</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {sandboxData.iocs && (
+                  <div className="indicators-compromise">
+                    <h3>Indicators of Compromise</h3>
+                    <p className="iocs-subtitle">Extracted and derived IOCs</p>
+                    
+                    <div className="iocs-grid">
+                      {sandboxData.iocs.md5 && (
+                        <div className="ioc-item">
+                          <span className="ioc-icon">🔒</span>
+                          <span className="ioc-label">MD5</span>
+                          <span className="ioc-count">{Array.isArray(sandboxData.iocs.md5) ? sandboxData.iocs.md5.length : 1}</span>
+                        </div>
+                      )}
+                      {sandboxData.iocs.sha1 && (
+                        <div className="ioc-item">
+                          <span className="ioc-icon">🔒</span>
+                          <span className="ioc-label">SHA1</span>
+                          <span className="ioc-count">{Array.isArray(sandboxData.iocs.sha1) ? sandboxData.iocs.sha1.length : 1}</span>
+                        </div>
+                      )}
+                      {sandboxData.iocs.sha256 && (
+                        <div className="ioc-item">
+                          <span className="ioc-icon">🔒</span>
+                          <span className="ioc-label">SHA-256</span>
+                          <span className="ioc-count">{Array.isArray(sandboxData.iocs.sha256) ? sandboxData.iocs.sha256.length : 1}</span>
+                        </div>
+                      )}
+                      {sandboxData.iocs.uuid && (
+                        <div className="ioc-item">
+                          <span className="ioc-icon">🆔</span>
+                          <span className="ioc-label">UUID</span>
+                          <span className="ioc-count">{Array.isArray(sandboxData.iocs.uuid) ? sandboxData.iocs.uuid.length : 1}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {sandboxData.yara_rules && (
+                      <div className="yara-rules">
+                        <div className="yara-item">
+                          <span className="yara-label">pe_number_of_sections_uncommon</span>
+                          <span className="yara-status suspicious">Suspicious</span>
+                        </div>
+                        <div className="yara-item">
+                          <span className="yara-label">dbgdetect_funcs</span>
+                          <span className="yara-status no-threats">No Threats Detected</span>
+                        </div>
+                        <div className="yara-item">
+                          <span className="yara-label">ThreadControl__Context</span>
+                          <span className="yara-status no-threats">No Threats Detected</span>
+                        </div>
+                        <div className="yara-item">
+                          <span className="yara-label">SEH__vectored</span>
+                          <span className="yara-status no-threats">No Threats Detected</span>
+                        </div>
+                        <button className="show-more-btn">+ 2 more rules</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Scan History */}
             <div className="scan-history-section">
               <h2>Scan History</h2>
-              <p className="scan-history-info">This file has been scanned 1 time</p>
+              <p className="scan-history-info">
+                This {scanType === 'url' ? 'URL' : 'file'} has been scanned 1 time
+              </p>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Chatbot Component */}
+      {user && (
+        <Chatbot 
+          Data={{ 
+            ScanningData: scanData, 
+            SandboxData: sandboxData, 
+            UrlScanData: urlData 
+          }}
+          user={user}
+        />
+      )}
     </div>
   );
 };

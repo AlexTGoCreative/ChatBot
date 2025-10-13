@@ -139,5 +139,16 @@ export const api = {
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch URL scan data');
     }
+  },
+
+  getHashLookup: async (hash) => {
+    try {
+      const response = await axios.get(`${API_URL}/hash-lookup/${hash}`, {
+        headers: getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch hash lookup data');
+    }
   }
 }; 

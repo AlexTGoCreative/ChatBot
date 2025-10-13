@@ -1,23 +1,171 @@
 /* UrlForm.css */
+.form-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 80px;
+  width: 100%;
+  position: relative;
+}
+
+/* Hide form elements when chatbot is open */
+@media (max-width: 767px) {
+  .form-wrapper.chatbot-open {
+    display: none;
+  }
+}
+
+/* On desktop, reduce opacity and move form elements to prevent overlap */
+@media (min-width: 768px) {
+  .form-wrapper.chatbot-open {
+    opacity: 0.3;
+    pointer-events: none;
+    transform: translateX(-20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 1;
+  }
+  
+  .form-wrapper.chatbot-open .scan-buttons-container {
+    z-index: 1;
+  }
+  
+  .form-wrapper.chatbot-open .url-form {
+    z-index: 1;
+  }
+}
+
+.description-text {
+  color: white;
+  text-align: center;
+  max-width: 600px;
+  margin-bottom: 180px;
+  padding: 0 20px;
+}
+
+.description-text p {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 0;
+  color: white;
+}
+
+.learn-more-link {
+  color: #60a5fa;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.learn-more-link:hover {
+  color: #93c5fd;
+}
+
+/* Scan Buttons Container */
+.scan-buttons-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  z-index: 10;
+  margin-top: -140px;
+}
+
+.scan-buttons-group {
+  display: flex;
+  flex-direction: row;
+  background: #0A0F1E;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 12px;
+  padding: 8px;
+  gap: 4px;
+  width: fit-content;
+}
+
+.scan-tab-button {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  font-size: 0.875rem;
+  width: 155px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.scan-tab-button:hover {
+  color: white;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.scan-tab-button.active {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  color: white;
+}
+
+.scan-tab-button .icon-placeholder {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.scan-tab-button.active .icon-placeholder {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.trust-no-file-text {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 39px;
+  margin-bottom: 39px;
+  letter-spacing: 0.5px;
+}
+
 .url-form {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 80px;
     gap: 0;
     user-select: none;
+    position: relative;
+  }
+
+  .url-form::before {
+    content: '';
+    position: absolute;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    background: transparent;
+    padding: 16px 20px;
+    pointer-events: none;
+    width: 600px;
+    height: 200px;
+    left: 50%;
+    bottom: -60px; 
+    transform: translateX(-50%);
+    z-index: 0;
   }
   
   .input-container {
     position: relative;
     width: 100%;
-    max-width: 500px;
+    max-width: 400px;
   }
   
   .url-input {
     width: 100%;
-    padding: 12px 50px 12px 16px;
-    font-size: 0.95rem;
+    padding: 10px 60px 10px 14px;
+    font-size: 0.9rem;
     border: 1px solid #ccc;
     border-radius: 8px 0 0 8px;
     outline: none;
@@ -56,8 +204,8 @@
     background-color: #2563eb;
     color: white;
     font-weight: 500;
-    padding: 12px 20px;
-    font-size: 0.95rem;
+    padding: 10px 18px;
+    font-size: 0.9rem;
     cursor: pointer;
     border-radius: 0 8px 8px 0;
     border: none;
@@ -95,12 +243,143 @@
     color: #9ca3af;
     cursor: not-allowed;
   }
+
+  /* Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+
+  .modal-content {
+    background: #141e2f;
+    border-radius: 12px;
+    max-width: 700px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 40px;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: white;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .modal-close:hover {
+    background: #f5f5f5;
+    color: #333;
+  }
+
+  .modal-content h2 {
+    color: white;
+    font-size: 1.75rem;
+    margin: 0 0 20px 0;
+    font-weight: 700;
+  }
+
+  .modal-body {
+    color: white;
+  }
+
+  .modal-body p {
+    margin: 0 0 15px 0;
+    line-height: 1.6;
+    font-size: 1rem;
+  }
+
+  .modal-body p:last-child {
+    margin-bottom: 0;
+  }
+
+  .modal-footer-text {
+    text-align: center;
+    margin-top: 20px !important;
+    padding-top: 20px;
+    border-top: 1px solid #e5e5e5;
+  }
   
   /* Media Queries for Responsive Design */
   @media (max-width: 768px) {
-    .url-form {
-      margin-top: 40px;
+    .form-wrapper {
+      margin-top: 30px;
       padding: 0 16px;
+    }
+
+    .description-text {
+      margin-bottom: 80px;
+      padding: 0;
+      max-width: 100%;
+    }
+
+    .description-text p {
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .scan-buttons-container {
+      margin-top: -50px;
+    }
+
+    .scan-buttons-group {
+      flex-direction: row;
+      width: auto;
+      padding: 6px;
+      max-width: 100%;
+      flex-wrap: nowrap;
+    }
+
+    .scan-tab-button {
+      width: 100px;
+      padding: 12px 8px;
+      font-size: 0.75rem;
+      justify-content: center;
+    }
+
+    .scan-tab-button .icon-placeholder {
+      width: 14px;
+      height: 14px;
+      font-size: 13px;
+    }
+
+    .trust-no-file-text {
+      font-size: 1.3rem;
+      margin: 35px 0 30px 0;
+    }
+
+    .url-form {
+      padding: 0;
+      margin: 0 auto;
+      max-width: 320px;
+    }
+
+    .url-form::before {
+      width: 350px;
+      height: 160px;
+      bottom: -40px;
     }
   
     .input-container {
@@ -108,17 +387,17 @@
     }
   
     .url-input {
-      font-size: 0.9rem;
-      padding: 10px 45px 10px 14px;
+      font-size: 0.85rem;
+      padding: 12px 50px 12px 16px;
     }
   
     .submit-button {
-      font-size: 0.9rem;
-      padding: 10px 16px;
+      font-size: 0.85rem;
+      padding: 12px 18px;
     }
   
     .file-label {
-      right: 10px;
+      right: 12px;
     }
   
     .attach-icon {
@@ -127,28 +406,176 @@
   }
   
   @media (max-width: 480px) {
-    .url-form {
+    .form-wrapper {
       margin-top: 20px;
       padding: 0 12px;
     }
+
+    .description-text {
+      margin-bottom: 60px;
+      padding: 0;
+    }
+
+    .description-text p {
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .scan-buttons-container {
+      margin-top: -30px;
+    }
+
+    .scan-buttons-group {
+      width: auto;
+      padding: 4px;
+      max-width: 95%;
+    }
+
+    .scan-tab-button {
+      width: 90px;
+      padding: 10px 6px;
+      font-size: 0.7rem;
+    }
+
+    .scan-tab-button .icon-placeholder {
+      width: 12px;
+      height: 12px;
+      font-size: 11px;
+    }
+
+    .trust-no-file-text {
+      font-size: 1.1rem;
+      margin: 30px 0 25px 0;
+    }
+
+    .url-form {
+      padding: 0;
+      margin: 0 auto;
+      max-width: 280px;
+    }
+
+    .url-form::before {
+      width: 300px;
+      height: 140px;
+      bottom: -35px;
+      border-width: 1.5px;
+    }
   
     .url-input {
-      font-size: 0.85rem;
-      padding: 8px 40px 8px 12px;
+      font-size: 0.8rem;
+      padding: 10px 45px 10px 14px;
       border-radius: 8px 0 0 8px;
     }
   
     .submit-button {
-      font-size: 0.85rem;
-      padding: 8px 12px;
+      font-size: 0.8rem;
+      padding: 10px 14px;
       border-radius: 0 8px 8px 0;
     }
   
     .file-label {
-      right: 8px;
+      right: 10px;
     }
   
     .attach-icon {
       font-size: 16px;
+    }
+
+    .modal-overlay {
+      padding: 12px;
+    }
+
+    .modal-content {
+      padding: 24px 16px;
+      max-height: 85vh;
+      border-radius: 8px;
+    }
+
+    .modal-close {
+      top: 10px;
+      right: 10px;
+      width: 35px;
+      height: 35px;
+      font-size: 1.5rem;
+    }
+
+    .modal-content h2 {
+      font-size: 1.25rem;
+      margin-bottom: 12px;
+    }
+
+    .modal-body p {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+  }
+
+  /* Extra small screens (iPhone SE, etc.) */
+  @media (max-width: 360px) {
+    .form-wrapper {
+      margin-top: 15px;
+      padding: 0 8px;
+    }
+
+    .description-text {
+      margin-bottom: 50px;
+    }
+
+    .description-text p {
+      font-size: 0.8rem;
+    }
+
+    .scan-buttons-container {
+      margin-top: -25px;
+    }
+
+    .scan-buttons-group {
+      width: auto;
+      padding: 3px;
+      max-width: 90%;
+    }
+
+    .scan-tab-button {
+      width: 80px;
+      padding: 8px 4px;
+      font-size: 0.65rem;
+    }
+
+    .trust-no-file-text {
+      font-size: 1rem;
+      margin: 25px 0 20px 0;
+    }
+
+    .url-form {
+      max-width: 260px;
+    }
+
+    .url-form::before {
+      width: 280px;
+      height: 120px;
+      bottom: -30px;
+    }
+
+    .url-input {
+      font-size: 0.75rem;
+      padding: 8px 40px 8px 12px;
+    }
+
+    .submit-button {
+      font-size: 0.75rem;
+      padding: 8px 12px;
+    }
+
+    .modal-content {
+      padding: 20px 12px;
+    }
+
+    .modal-content h2 {
+      font-size: 1.1rem;
+    }
+
+    .modal-body p {
+      font-size: 0.85rem;
     }
   }

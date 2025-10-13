@@ -174,11 +174,91 @@
 }
 
 /* Mobile responsive */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .loading-content {
     margin: 20px;
-    padding: 30px 20px;
+    padding: 32px 24px;
+    min-width: 260px;
+    max-width: calc(100% - 40px);
+  }
+
+  .loading-message {
+    font-size: 15px;
+  }
+
+  .retry-button {
+    padding: 12px 24px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .loading-content {
+    margin: 16px;
+    padding: 28px 20px;
     min-width: auto;
-    width: calc(100% - 40px);
+    width: calc(100% - 32px);
+    border-radius: 12px;
+  }
+
+  .loading-spinner, .success-checkmark, .error-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .success-checkmark, .error-icon {
+    font-size: 20px;
+  }
+
+  .loading-message {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  .progress-bar {
+    margin-bottom: 16px;
+  }
+
+  .retry-button {
+    padding: 10px 20px;
+    font-size: 14px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .loading-content {
+    margin: 12px;
+    padding: 24px 16px;
+    width: calc(100% - 24px);
+    border-radius: 8px;
+  }
+
+  .loading-spinner, .success-checkmark, .error-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .success-checkmark {
+    font-size: 18px;
+  }
+
+  .error-icon {
+    font-size: 16px;
+  }
+
+  .loading-message {
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  .progress-bar {
+    margin-bottom: 14px;
+    height: 5px;
+  }
+
+  .retry-button {
+    padding: 8px 16px;
+    font-size: 13px;
   }
 }
