@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import os
@@ -12,11 +13,15 @@ from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from fastapi.middleware.cors import CORSMiddleware
 from langdetect import detect
+import tiktoken
+import hashlib
+import redis
 import time
 import logging
 from datetime import datetime
 import json
 from sentence_transformers import CrossEncoder
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 import numpy as np
 
 logging.basicConfig(
@@ -66,6 +71,17 @@ RERANK_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 RERANK_TOP_K = 5          # Max docs to keep after reranking
 RERANK_THRESHOLD = 0.1    # Minimum cross-encoder score to include a doc
 
+# Token budget configuration (P0 Step 4)
+HISTORY_TOKEN_BUDGET = 4000    # Max tokens allocated to chat history
+CONTEXT_TOKEN_BUDGET = 6000    # Max tokens for document context
+ANSWER_HEADROOM = 2000         # Reserved tokens for model's response
+TOKEN_ENCODING = "o200k_base"  # Tokenizer encoding for GPT-5.4-nano
+
+# Redis cache configuration (P0 Step 5)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+CACHE_TTL_NORMAL = 86400       # 24 hours for normal responses
+CACHE_TTL_ABSTENTION = 1800    # 30 minutes for abstention responses
+
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 # --- Module-level singletons (P0 fixes) ---
@@ -75,9 +91,31 @@ OPENAI_MODEL = "gpt-5.4-nano"
 openai_client = OpenAI()  # Uses OPENAI_API_KEY env var
 logger.info(f"OpenAI client initialized (model: {OPENAI_MODEL})")
 
+# P0 Step 4: Tokenizer for token-aware truncation
+tokenizer = tiktoken.get_encoding(TOKEN_ENCODING)
+logger.info(f"Tokenizer loaded: {TOKEN_ENCODING}")
+
 # P0 Step 1: Cross-encoder reranker — loaded once at startup
 reranker = CrossEncoder(RERANK_MODEL_NAME)
 logger.info(f"Cross-encoder reranker loaded: {RERANK_MODEL_NAME}")
+
+# P0 Step 5: Redis connection (graceful degradation if unavailable)
+try:
+    redis_client = redis.from_url(REDIS_URL, decode_responses=True, socket_timeout=2)
+    redis_client.ping()
+    logger.info(f"Redis connected: {REDIS_URL}")
+except (redis.ConnectionError, redis.TimeoutError) as e:
+    redis_client = None
+    logger.warning(f"Redis unavailable, caching disabled: {e}")
+
+# P0 Step 7: Prometheus metrics
+REQUEST_COUNT = Counter("chatbot_requests_total", "Total requests", ["endpoint", "status"])
+REQUEST_LATENCY = Histogram("chatbot_request_duration_seconds", "Request latency", ["endpoint"])
+RETRIEVAL_LATENCY = Histogram("chatbot_retrieval_duration_seconds", "Retrieval latency")
+RERANK_LATENCY = Histogram("chatbot_rerank_duration_seconds", "Reranking latency")
+GENERATION_LATENCY = Histogram("chatbot_generation_duration_seconds", "LLM generation latency")
+CACHE_HITS = Counter("chatbot_cache_hits_total", "Cache hits")
+CACHE_MISSES = Counter("chatbot_cache_misses_total", "Cache misses")
 
 DB_DIR = "chroma_db"
 
@@ -134,6 +172,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# P0 Step 5: Cache helpers
+def _cache_key(question: str, context_hash: str) -> str:
+    """Generate a deterministic cache key from question + context."""
+    raw = f"{question.strip().lower()}|{context_hash}"
+    return f"rag:v1:{hashlib.sha256(raw.encode()).hexdigest()}"
+
+
+def _get_cached_response(question: str, context_hash: str) -> Optional[str]:
+    """Look up cached response. Returns None on miss or Redis unavailability."""
+    if not redis_client:
+        return None
+    try:
+        key = _cache_key(question, context_hash)
+        cached = redis_client.get(key)
+        if cached:
+            CACHE_HITS.inc()
+            logger.info(f"Cache HIT: {key[:20]}...")
+            return cached
+        CACHE_MISSES.inc()
+        return None
+    except (redis.ConnectionError, redis.TimeoutError):
+        return None
+
+
+def _set_cached_response(question: str, context_hash: str, answer: str, is_abstention: bool = False):
+    """Store response in cache with appropriate TTL."""
+    if not redis_client:
+        return
+    try:
+        key = _cache_key(question, context_hash)
+        ttl = CACHE_TTL_ABSTENTION if is_abstention else CACHE_TTL_NORMAL
+        redis_client.setex(key, ttl, answer)
+    except (redis.ConnectionError, redis.TimeoutError):
+        pass
+
+
 class ChatMessage(BaseModel):
     role: str
     text: str
@@ -168,7 +242,9 @@ async def ask(payload: ChatPayload):
         )
         
         relevant_docs = retriever.invoke(last_question)
-        performance_monitor.record_metric("retrieval", time.time() - retrieval_start)
+        retrieval_duration = time.time() - retrieval_start
+        performance_monitor.record_metric("retrieval", retrieval_duration)
+        RETRIEVAL_LATENCY.observe(retrieval_duration)
 
         # --- P0 Step 1: Real cross-encoder reranking ---
         rerank_start = time.time()
@@ -197,6 +273,7 @@ async def ask(payload: ChatPayload):
             top_scores = []
         
         performance_monitor.record_metric("reranking", time.time() - rerank_start)
+        RERANK_LATENCY.observe(time.time() - rerank_start)
 
         # --- P0 Step 3: Abstention when no relevant docs found ---
         has_relevant_context = len(reranked_docs) > 0
@@ -324,13 +401,41 @@ Analysis Context:
             {"role": "developer", "content": system_instructions},
         ]
 
-        # Add chat history as conversation turns
+        # P0 Step 4: Token-aware history truncation
+        # Keep most recent messages, drop oldest when over budget
         if payload.chat_history:
-            for msg in payload.chat_history:
+            history_messages = []
+            token_count = 0
+            
+            # Iterate from most recent to oldest
+            for msg in reversed(payload.chat_history):
                 role = "user" if msg.role == "user" else "assistant"
-                input_messages.append({"role": role, "content": msg.text})
+                msg_tokens = len(tokenizer.encode(msg.text)) + 4  # +4 for role/message overhead
+                
+                if token_count + msg_tokens > HISTORY_TOKEN_BUDGET:
+                    logger.info(f"History truncated: {token_count} tokens kept, "
+                               f"{len(payload.chat_history) - len(history_messages)} messages dropped")
+                    break
+                
+                history_messages.append({"role": role, "content": msg.text})
+                token_count += msg_tokens
+            
+            # Reverse back to chronological order
+            history_messages.reverse()
+            input_messages.extend(history_messages)
         else:
             input_messages.append({"role": "user", "content": last_question})
+
+        # --- P0 Step 5: Cache lookup ---
+        context_hash = hashlib.sha256(doc_context.encode()).hexdigest()[:16] if doc_context else "no_context"
+        cached_answer = _get_cached_response(last_question, context_hash)
+        if cached_answer:
+            duration = time.time() - start_time
+            performance_monitor.record_metric("total_request", duration)
+            REQUEST_COUNT.labels(endpoint="/ask", status="cache_hit").inc()
+            REQUEST_LATENCY.labels(endpoint="/ask").observe(duration)
+            logger.info(f"Cache hit, served in {duration:.3f}s")
+            return {"answer": cached_answer}
 
         # --- Generation using OpenAI Responses API ---
         generation_start = time.time()
@@ -338,26 +443,38 @@ Analysis Context:
             model=OPENAI_MODEL,
             input=input_messages,
         )
-        performance_monitor.record_metric("generation", time.time() - generation_start)
+        gen_duration = time.time() - generation_start
+        performance_monitor.record_metric("generation", gen_duration)
+        GENERATION_LATENCY.observe(gen_duration)
+        
+        answer_text = response.output_text
+        
+        # P0 Step 5: Store in cache
+        is_abstention = not has_relevant_context and not scan_context
+        _set_cached_response(last_question, context_hash, answer_text, is_abstention)
         
         # Record total request time
         end_time = time.time()
         duration = end_time - start_time
         performance_monitor.record_metric("total_request", duration)
+        REQUEST_COUNT.labels(endpoint="/ask", status="success").inc()
+        REQUEST_LATENCY.labels(endpoint="/ask").observe(duration)
         
         logger.info(f"Request completed in {duration:.2f}s "
                    f"(retrieval={performance_monitor.metrics[-3]['duration']:.2f}s, "
                    f"rerank={performance_monitor.metrics[-2]['duration']:.2f}s, "
-                   f"generation={performance_monitor.metrics[-1]['duration']:.2f}s)")
+                   f"generation={gen_duration:.2f}s)")
         
-        return {"answer": response.output_text}
+        return {"answer": answer_text}
         
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
+        REQUEST_COUNT.labels(endpoint="/ask", status="error").inc()
         try:
             end_time = time.time()
             duration = end_time - start_time
             performance_monitor.record_metric("failed_request", duration)
+            REQUEST_LATENCY.labels(endpoint="/ask").observe(duration)
         except Exception as metric_error:
             logger.warning(f"Failed to record error metrics: {metric_error}")
         
@@ -378,3 +495,122 @@ async def get_metrics():
         "rerank_threshold": RERANK_THRESHOLD,
         "rerank_top_k": RERANK_TOP_K,
     }
+
+
+# P0 Step 7: Prometheus metrics endpoint
+@app.get("/metrics/prometheus")
+async def prometheus_metrics():
+    from starlette.responses import Response
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+# P0 Step 6: SSE Streaming endpoint
+@app.post("/ask/stream")
+async def ask_stream(payload: ChatPayload):
+    """Streaming version of /ask — returns Server-Sent Events."""
+    start_time = time.time()
+
+    try:
+        last_question = next((msg.text for msg in reversed(payload.chat_history) if msg.role == "user"), None)
+        if not last_question:
+            raise HTTPException(status_code=400, detail="No question found in chat history")
+
+        # --- Retrieval (same as /ask) ---
+        retriever = vectordb.as_retriever(
+            search_type="mmr",
+            search_kwargs={"k": 10, "fetch_k": 30, "lambda_mult": 0.5}
+        )
+        relevant_docs = retriever.invoke(last_question)
+
+        # --- Reranking ---
+        if relevant_docs:
+            pairs = [[last_question, doc.page_content] for doc in relevant_docs]
+            scores = reranker.predict(pairs)
+            scored_docs = sorted(zip(relevant_docs, scores), key=lambda x: x[1], reverse=True)
+            filtered_docs = [(doc, s) for doc, s in scored_docs if s >= RERANK_THRESHOLD][:RERANK_TOP_K]
+            reranked_docs = [doc for doc, _ in filtered_docs]
+        else:
+            reranked_docs = []
+
+        has_relevant_context = len(reranked_docs) > 0
+
+        # Build context (simplified — no scan context for streaming MVP)
+        scan_results = payload.scan_results or {}
+        file_info = payload.file_info or {}
+        process_info = payload.process_info or {}
+        sanitized_info = payload.sanitized_info or {}
+        sandbox_data = payload.sandbox_data or {}
+        url_data = payload.url_data or {}
+        has_scan_context = any([file_info, scan_results, process_info, sanitized_info, sandbox_data, url_data])
+
+        doc_context = "\n\n".join([doc.page_content for doc in reranked_docs]) if reranked_docs else ""
+
+        # --- Cache check ---
+        context_hash = hashlib.sha256(doc_context.encode()).hexdigest()[:16] if doc_context else "no_context"
+        cached_answer = _get_cached_response(last_question, context_hash)
+        if cached_answer:
+            async def _cached_stream():
+                yield f"data: {json.dumps({'delta': cached_answer})}\n\n"
+                yield "data: [DONE]\n\n"
+            REQUEST_COUNT.labels(endpoint="/ask/stream", status="cache_hit").inc()
+            return StreamingResponse(_cached_stream(), media_type="text/event-stream")
+
+        # Build system instructions
+        system_instructions = "You are OPSWAT's advanced cybersecurity assistant. Provide a detailed, accurate answer to the user's question."
+        if doc_context:
+            system_instructions += f"\n\nRelevant Documentation (use this to ground your answer):\n<<<CONTEXT_START>>>\n{doc_context}\n<<<CONTEXT_END>>>\n"
+        elif not has_scan_context:
+            system_instructions += "\n\nNOTE: No relevant documentation was found for this query. If the question is about MetaDefender, OPSWAT products, or cybersecurity scanning, acknowledge that you don't have specific documentation to reference and provide your best general knowledge answer with a caveat. If the question is a general greeting or conversational, respond naturally."
+
+        input_messages = [{"role": "developer", "content": system_instructions}]
+
+        # Token-aware history truncation
+        if payload.chat_history:
+            history_messages = []
+            token_count = 0
+            for msg in reversed(payload.chat_history):
+                role = "user" if msg.role == "user" else "assistant"
+                msg_tokens = len(tokenizer.encode(msg.text)) + 4
+                if token_count + msg_tokens > HISTORY_TOKEN_BUDGET:
+                    break
+                history_messages.append({"role": role, "content": msg.text})
+                token_count += msg_tokens
+            history_messages.reverse()
+            input_messages.extend(history_messages)
+        else:
+            input_messages.append({"role": "user", "content": last_question})
+
+        # --- Streaming generation ---
+        async def _event_stream():
+            full_response = []
+            try:
+                stream = openai_client.responses.create(
+                    model=OPENAI_MODEL,
+                    input=input_messages,
+                    stream=True,
+                )
+                for event in stream:
+                    if event.type == "response.output_text.delta":
+                        full_response.append(event.delta)
+                        yield f"data: {json.dumps({'delta': event.delta})}\n\n"
+
+                # Cache the full response
+                answer_text = "".join(full_response)
+                is_abstention = not has_relevant_context and not has_scan_context
+                _set_cached_response(last_question, context_hash, answer_text, is_abstention)
+
+                yield "data: [DONE]\n\n"
+                REQUEST_COUNT.labels(endpoint="/ask/stream", status="success").inc()
+                REQUEST_LATENCY.labels(endpoint="/ask/stream").observe(time.time() - start_time)
+            except Exception as e:
+                logger.error(f"Streaming error: {e}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                yield "data: [DONE]\n\n"
+                REQUEST_COUNT.labels(endpoint="/ask/stream", status="error").inc()
+
+        return StreamingResponse(_event_stream(), media_type="text/event-stream")
+
+    except Exception as e:
+        logger.error(f"Stream setup error: {str(e)}")
+        REQUEST_COUNT.labels(endpoint="/ask/stream", status="error").inc()
+        raise HTTPException(status_code=500, detail=str(e))

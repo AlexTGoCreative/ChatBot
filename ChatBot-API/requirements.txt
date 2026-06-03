@@ -1,6 +1,7 @@
 fastapi==0.115.9
 uvicorn==0.34.0
 openai
+tiktoken
 langchain==0.3.23
 langchain-community==0.3.21
 langchain-huggingface==0.1.2
@@ -16,3 +17,4 @@ redis==5.0.1
 tenacity==8.2.3
 aiohttp==3.9.3
 numpy
+requests

@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "question": "How do I look up a file hash using MetaDefender Cloud API?",
+    "expected_answer": "Use the GET endpoint for retrieving scan reports using a data hash. Send a GET request with the file's hash (MD5, SHA1, or SHA256) to get the scan report.",
+    "category": "hash_lookup"
+  },
+  {
+    "id": 2,
+    "question": "What does scan result 0 mean?",
+    "expected_answer": "Scan result 0 means 'No Threats Found'. The file was scanned successfully and no threats were detected. It can also mean the file was empty.",
+    "category": "scan_results"
+  },
+  {
+    "id": 3,
+    "question": "What does scan result 1 mean in MetaDefender?",
+    "expected_answer": "Scan result 1 means 'Infected/Known'. The file has been positively identified as containing a known threat based on signature or heuristic analysis. Do not open or use this file.",
+    "category": "scan_results"
+  },
+  {
+    "id": 4,
+    "question": "What does a suspicious scan result (2) indicate?",
+    "expected_answer": "Scan result 2 means 'Suspicious'. The file has not been definitively marked as malicious but exhibits behavior or characteristics commonly associated with threats such as obfuscation, macros, or anomalies in structure.",
+    "category": "scan_results"
+  },
+  {
+    "id": 5,
+    "question": "What happens when a file fails to scan (result 3)?",
+    "expected_answer": "Scan result 3 means 'Failed To Scan'. This usually happens due to technical issues such as an unreadable file, invalid format, corrupted data, or lack of read permissions. If no scan engines were enabled, this is the default result.",
+    "category": "scan_results"
+  },
+  {
+    "id": 6,
+    "question": "What does result 5 (Unknown) mean in bulk hash lookups?",
+    "expected_answer": "Result 5 means 'Unknown' and is used only in bulk hash lookups. It means the file hash was not found in the MetaDefender database.",
+    "category": "scan_results"
+  },
+  {
+    "id": 7,
+    "question": "How do I scan a file using MetaDefender Cloud?",
+    "expected_answer": "Use the POST endpoint for file analysis to submit a file for scanning with 20+ anti-malware engines. Then use the GET endpoint to fetch the analysis result.",
+    "category": "file_scanning"
+  },
+  {
+    "id": 8,
+    "question": "What is Deep CDR in MetaDefender?",
+    "expected_answer": "Deep CDR (Content Disarm and Reconstruction) is a data sanitization feature in MetaDefender Cloud that removes potentially malicious content from files while preserving usability.",
+    "category": "features"
+  },
+  {
+    "id": 9,
+    "question": "How can I look up an IP address reputation?",
+    "expected_answer": "Use the GET endpoint for IP lookup or the POST endpoint for IP bulk lookup in the Reputation Service section of the MetaDefender Cloud API.",
+    "category": "reputation"
+  },
+  {
+    "id": 10,
+    "question": "How do I check URL reputation with MetaDefender?",
+    "expected_answer": "Use the GET endpoint for URL lookup or the POST endpoint for URL bulk lookup in the Reputation Service section of the MetaDefender Cloud API.",
+    "category": "reputation"
+  },
+  {
+    "id": 11,
+    "question": "What is the sandbox feature in MetaDefender Cloud?",
+    "expected_answer": "The Dynamic Analysis (sandbox) feature allows you to submit URLs for sandbox scanning, perform sandbox lookups, and do hash lookups with sandbox results to analyze file behavior in an isolated environment.",
+    "category": "features"
+  },
+  {
+    "id": 12,
+    "question": "How do I get my API key information?",
+    "expected_answer": "Use the GET Apikey info endpoint to retrieve information about your API key, including its limits, scan history, and remaining limits.",
+    "category": "apikey"
+  },
+  {
+    "id": 13,
+    "question": "Can I scan multiple file hashes at once?",
+    "expected_answer": "Yes, use the POST endpoint for retrieving scan reports for multiple data hashes to look up multiple file hashes in a single request.",
+    "category": "hash_lookup"
+  },
+  {
+    "id": 14,
+    "question": "How do I download a sanitized file?",
+    "expected_answer": "Use the GET endpoint under Data Sanitization CDR to download sanitized files. You can also delete the sanitized version using the DELETE endpoint.",
+    "category": "sanitization"
+  },
+  {
+    "id": 15,
+    "question": "What threat intelligence feeds are available?",
+    "expected_answer": "MetaDefender Cloud provides several threat intelligence feeds: Feed - Hashes, False positives feed, False positives by engine feed, Download link for a file, Latest clean hashes, and Latest Infected Hashes.",
+    "category": "threat_intel"
+  },
+  {
+    "id": 16,
+    "question": "How can I check domain reputation?",
+    "expected_answer": "Use the GET endpoint for Domain lookup or the POST endpoint for Domain bulk lookup in the Reputation Service section of the MetaDefender Cloud API.",
+    "category": "reputation"
+  },
+  {
+    "id": 17,
+    "question": "What is the EXIF lookup feature?",
+    "expected_answer": "The EXIF lookup is part of the Application Information endpoints that allows you to retrieve EXIF metadata from files.",
+    "category": "features"
+  },
+  {
+    "id": 18,
+    "question": "How do I check MetaDefender Cloud API version?",
+    "expected_answer": "Use the GET API version endpoint under Status Endpoints to check the current API version.",
+    "category": "general"
+  },
+  {
+    "id": 19,
+    "question": "What scan engines does MetaDefender Cloud use?",
+    "expected_answer": "MetaDefender Cloud uses 20+ anti-malware engines for file analysis. You can check the engine definitions via the GET Engine definitions endpoint.",
+    "category": "general"
+  },
+  {
+    "id": 20,
+    "question": "How do I get the PE info of a file?",
+    "expected_answer": "Use the GET PE info lookup endpoint under Application Information to retrieve Portable Executable (PE) information from Windows executable files.",
+    "category": "features"
+  },
+  {
+    "id": 21,
+    "question": "Can I scan a repository with MetaDefender?",
+    "expected_answer": "Yes, use the POST endpoint for scanning a repository under File Scanning to submit a repository for analysis.",
+    "category": "file_scanning"
+  },
+  {
+    "id": 22,
+    "question": "What is MetaDefender Cloud?",
+    "expected_answer": "MetaDefender Cloud is OPSWAT's cloud-based threat detection platform offering file analysis with 20+ anti-malware engines, Deep CDR (Content Disarm and Reconstruction), reputation services for IPs/URLs/domains, sandbox analysis, and threat intelligence feeds.",
+    "category": "general"
+  },
+  {
+    "id": 23,
+    "question": "How do I retrieve sanitization details for multiple files?",
+    "expected_answer": "Use the POST endpoint for retrieving sanitization details for multiple data IDs to get sanitization results for multiple files in a single request.",
+    "category": "sanitization"
+  },
+  {
+    "id": 24,
+    "question": "What does the webhook status endpoint do?",
+    "expected_answer": "The GET endpoint for retrieving webhook status allows you to check the status of configured webhooks for scan notifications.",
+    "category": "file_scanning"
+  },
+  {
+    "id": 25,
+    "question": "How do I get an APK manifest?",
+    "expected_answer": "Use the GET APK manifest lookup endpoint under Application Information to retrieve the manifest file details from Android APK files.",
+    "category": "features"
+  },
+  {
+    "id": 26,
+    "question": "What should I do if a file is marked as infected?",
+    "expected_answer": "Do not open or use the file. It has been confirmed as malicious and may contain viruses, ransomware, trojans, worms, or other malware. Immediate deletion or isolation is recommended. If downloaded from a trusted source, notify them immediately.",
+    "category": "guidance"
+  },
+  {
+    "id": 27,
+    "question": "How can I get the file badge for a scanned file?",
+    "expected_answer": "Use the GET File badge endpoint under Hash Lookups to retrieve a badge image showing the scan status of a file.",
+    "category": "hash_lookup"
+  },
+  {
+    "id": 28,
+    "question": "What is the scan history endpoint?",
+    "expected_answer": "The GET endpoint for retrieving scan history allows you to view previously scanned files and their results.",
+    "category": "hash_lookup"
+  },
+  {
+    "id": 29,
+    "question": "How do I submit a URL for sandbox analysis?",
+    "expected_answer": "Use the POST Sandbox URL scan endpoint under Dynamic Analysis to submit a URL for sandbox analysis in an isolated environment.",
+    "category": "sandbox"
+  },
+  {
+    "id": 30,
+    "question": "What is the difference between hash lookup and file scanning?",
+    "expected_answer": "Hash lookup retrieves existing scan reports for a file using its hash (MD5/SHA1/SHA256) without uploading the file. File scanning requires uploading the actual file for real-time analysis with 20+ engines. Hash lookup is faster but only works if the file was previously scanned.",
+    "category": "general"
+  }
+]

@@ -1,7 +1,7 @@
 # RAG Architecture — Current Implementation
 
 > **Last updated:** 2026-06-03
-> **Version:** 2.0 (post-P0 improvements)
+> **Version:** 2.2 (P0 complete)
 
 ---
 
@@ -9,7 +9,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            POST /ask                                         │
+│                     POST /ask  |  POST /ask/stream                           │
 │                     (ChatPayload: history + scan context)                    │
 └──────────────────────────────────┬──────────────────────────────────────────┘
                                    │
@@ -40,7 +40,15 @@
                                    │
                                    ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ 4. CONTEXT ASSEMBLY                                                          │
+│ 4. CACHE LOOKUP (Redis L1)                                                   │
+│    • Key = sha256(question + context_hash)                                   │
+│    • Hit → return cached answer immediately                                  │
+│    • Miss → continue to generation                                           │
+└──────────────────────────────────┬───────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 5. CONTEXT ASSEMBLY                                                          │
 │    • Scan context: file info, scan results, sandbox, URL data                │
 │    • Doc context: concatenated reranked chunks (with isolation markers)       │
 │    • Abstention path: if no docs pass threshold AND no scan context           │
@@ -48,23 +56,24 @@
                                    │
                                    ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ 5. PROMPT CONSTRUCTION (OpenAI Responses API format)                         │
+│ 6. PROMPT CONSTRUCTION (OpenAI Responses API format)                         │
 │    • developer message: system instructions + doc context + scan context     │
-│    • user/assistant messages: full chat history as structured turns           │
+│    • user/assistant messages: token-budgeted history (4000 tok max)           │
 └──────────────────────────────────┬───────────────────────────────────────────┘
                                    │
                                    ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ 6. GENERATION (OpenAI GPT-5.4-nano)                                          │
-│    • client.responses.create(model, input)                                   │
-│    • Returns response.output_text                                            │
+│ 7. GENERATION (OpenAI GPT-5.4-nano)                                          │
+│    • /ask: client.responses.create(model, input) → full response             │
+│    • /ask/stream: stream=True → SSE deltas                                   │
 └──────────────────────────────────┬───────────────────────────────────────────┘
                                    │
                                    ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ 7. RESPONSE                                                                  │
-│    • Return {"answer": output_text}                                          │
-│    • Record per-stage timing metrics                                         │
+│ 8. RESPONSE + CACHE STORE                                                    │
+│    • Store in Redis (TTL: 24h normal, 30min abstentions)                     │
+│    • Return {"answer": output_text} or SSE stream                            │
+│    • Record Prometheus metrics + per-stage timing                            │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -164,8 +173,8 @@ Uses the **OpenAI Responses API** message format with role-based structure:
 ├─────────────────────────────────────────────────────┤
 │ Message 2+: role="user" or "assistant"              │
 │ ┌─────────────────────────────────────────────────┐ │
-│ │ Full chat history in chronological order        │ │
-│ │ (each message as its own turn)                  │ │
+│ │ Token-budgeted chat history (most recent first) │ │
+│ │ Max 4000 tokens; oldest messages dropped        │ │
 │ └─────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────┘
 ```
@@ -176,6 +185,17 @@ Uses the **OpenAI Responses API** message format with role-based structure:
 | (system) | `developer` | Highest priority instructions; cannot be overridden by user |
 | `user` | `user` | End-user messages |
 | `bot` | `assistant` | Model's previous responses |
+
+**Token-aware history truncation (P0 Step 4):**
+
+Chat history is allocated a fixed token budget of **4000 tokens**. The algorithm:
+1. Iterate messages from most recent → oldest
+2. Count tokens per message using `tiktoken` (`o200k_base` encoding) + 4 tokens overhead per message
+3. Accumulate until budget is exhausted
+4. Drop remaining (oldest) messages
+5. Reverse back to chronological order before appending to input
+
+This ensures the model always sees the most recent and relevant conversation context without risking context window overflow.
 
 ### Stage 6: Generation
 
@@ -237,6 +257,13 @@ Single document: `scraped_html/hash_lookup.txt`
 | `RERANK_MODEL_NAME` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Reranker model |
 | `RERANK_TOP_K` | `5` | Max docs after reranking |
 | `RERANK_THRESHOLD` | `0.1` | Min score to include a doc |
+| `HISTORY_TOKEN_BUDGET` | `4000` | Max tokens for chat history |
+| `CONTEXT_TOKEN_BUDGET` | `6000` | Max tokens for document context |
+| `ANSWER_HEADROOM` | `2000` | Reserved tokens for model response |
+| `TOKEN_ENCODING` | `o200k_base` | Tiktoken encoding for GPT-5.4-nano |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection (env override) |
+| `CACHE_TTL_NORMAL` | `86400` (24h) | Cache TTL for normal responses |
+| `CACHE_TTL_ABSTENTION` | `1800` (30min) | Cache TTL for abstention responses |
 | `CHUNK_SIZE` | `1000` | Characters per chunk |
 | `CHUNK_OVERLAP` | `200` | Overlap between chunks |
 | MMR `k` | `10` | Docs returned from retrieval |
@@ -271,6 +298,18 @@ Single document: `scraped_html/hash_lookup.txt`
 }
 ```
 
+### POST `/ask/stream`
+
+**Request body:** Same as `/ask`
+
+**Response:** Server-Sent Events (SSE) stream
+```
+data: {"delta": "Based on"}
+data: {"delta": " the MetaDefender"}
+data: {"delta": " documentation..."}
+data: [DONE]
+```
+
 ### GET `/metrics`
 
 **Response:**
@@ -290,6 +329,17 @@ Single document: `scraped_html/hash_lookup.txt`
 }
 ```
 
+### GET `/metrics/prometheus`
+
+Returns Prometheus exposition format with:
+- `chatbot_requests_total` (counter, labels: endpoint, status)
+- `chatbot_request_duration_seconds` (histogram, labels: endpoint)
+- `chatbot_retrieval_duration_seconds` (histogram)
+- `chatbot_rerank_duration_seconds` (histogram)
+- `chatbot_generation_duration_seconds` (histogram)
+- `chatbot_cache_hits_total` (counter)
+- `chatbot_cache_misses_total` (counter)
+
 ---
 
 ## Startup Sequence
@@ -297,10 +347,13 @@ Single document: `scraped_html/hash_lookup.txt`
 ```
 1. Load .env file (python-dotenv)
 2. Initialize OpenAI client (reads OPENAI_API_KEY)
-3. Load cross-encoder reranker model (~2-5s, downloads on first run)
-4. Load embedding model: all-mpnet-base-v2 (~3-10s)
-5. Load/create ChromaDB vector store from hash_lookup.txt
-6. Start FastAPI server on port 7860
+3. Load tiktoken encoding (o200k_base) for token counting
+4. Load cross-encoder reranker model (~2-5s, downloads on first run)
+5. Connect to Redis (graceful degradation if unavailable)
+6. Initialize Prometheus metrics collectors
+7. Load embedding model: all-mpnet-base-v2 (~3-10s)
+8. Load/create ChromaDB vector store from hash_lookup.txt
+9. Start FastAPI server on port 7860
 ```
 
 ---
@@ -321,21 +374,18 @@ Single document: `scraped_html/hash_lookup.txt`
 
 | Limitation | Impact | Planned Fix |
 |-----------|--------|-------------|
-| No token budgeting | Long chat histories may exceed context window | P0 Step 4: Token-aware truncation |
-| No response caching | Repeated queries hit the LLM every time | P0 Step 5: Redis L1 cache |
-| No streaming | Client waits for full response | P0 Step 6: SSE streaming |
 | Single document source | Knowledge limited to hash-lookup docs | Expand corpus |
 | Character-based chunking | Chunks may split mid-sentence | P1: Token-aware structure splitting |
 | No hybrid retrieval | Pure dense search; misses keyword matches | P1: BM25 + dense fusion |
 | No query rewriting | Follow-up questions lack context | P1: Query rewriter |
 | Symmetric embeddings | Same model for query and doc encoding | P1: Asymmetric embeddings |
-| No evaluation | No way to measure quality regressions | P0 Step 8: RAGAS golden set |
+| CORS allows all origins | Security risk in production | Restrict to known origins |
 
 ---
 
 ## Changelog
 
 | Date | Version | Changes |
-|------|---------|---------|
+|------|---------|---------|| 2026-06-03 | 2.2 | P0 complete: Redis L1 cache with graceful degradation; SSE streaming endpoint (`/ask/stream`); Prometheus observability (`/metrics/prometheus`); Golden set (30 Q/A pairs) + evaluation script || 2026-06-03 | 2.1 | P0 Step 4: Token-aware history truncation using tiktoken; chat history capped at 4000 tokens keeping most recent messages |
 | 2026-06-03 | 2.0 | Replaced no-op reranker with cross-encoder; switched from Gemini to OpenAI GPT-5.4-nano; added relevance threshold + abstention; module-level singletons; per-stage metrics; context isolation markers; structured message roles |
 | — | 1.0 | Initial prototype: Gemini 2.0 Flash, ChromaDB MMR, no-op sort, string concat prompt |
