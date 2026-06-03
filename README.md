@@ -3,6 +3,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Python](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)](https://www.python.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 
@@ -76,7 +77,7 @@
 ## Project Structure
 
 ```
-├── ChatBot/                 # React frontend
+├── ozzy-app/                # React frontend (in this repo)
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── Auth/        # Login & Register forms
@@ -91,15 +92,7 @@
 │   ├── package.json
 │   └── vite.config.js       # Dev proxy: /scan→:5000, /ask→:7860
 │
-├── ChatBot-API/             # Python AI backend
-│   ├── chat_api.py          # FastAPI app — RAG + OpenAI chat endpoint
-│   ├── scraping_hash_lookup.py  # Scraper for MetaDefender docs (Playwright)
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   ├── chroma_db/           # Persisted vector store
-│   └── scraped_html/        # Cached documentation text
-│
-├── Server/                  # Node.js/Express backend
+├── ozzy-api/                # Git submodule → github.com/AlexTGoCreative/ozzy-api
 │   ├── index.js             # API routes (auth, scan proxy, history)
 │   ├── middleware/
 │   │   └── auth.js          # JWT verification middleware
@@ -109,6 +102,16 @@
 │   │   └── ScanHistory.js   # File/URL scan records
 │   └── package.json
 │
+├── ozzy-ai/                 # Git submodule → github.com/AlexTGoCreative/ozzy-ai
+│   ├── chat_api.py          # FastAPI app — RAG + OpenAI chat endpoint
+│   ├── evaluate_rag.py      # Golden set evaluation script
+│   ├── evaluation/          # Golden set Q/A pairs
+│   ├── scraping_hash_lookup.py  # Scraper for MetaDefender docs
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── scraped_html/        # Cached documentation text
+│
+├── docker-compose.yml       # Orchestrates all services + Redis + MongoDB
 └── README.md
 ```
 
@@ -124,13 +127,13 @@
 
 Create a `.env` file in each of the three service directories:
 
-### `ChatBot/.env`
+### `ozzy-app/.env`
 ```env
 VITE_METADEFENDER_API_KEY=your_metadefender_api_key
 VITE_API2_URL=http://localhost:5000
 ```
 
-### `Server/.env`
+### `ozzy-api/.env`
 ```env
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/ozzy
@@ -138,9 +141,10 @@ METADEFENDER_API_KEY=your_metadefender_api_key
 JWT_SECRET=your_jwt_secret
 ```
 
-### `ChatBot-API/.env`
+### `ozzy-ai/.env`
 ```env
 OPENAI_API_KEY=your_openai_api_key
+REDIS_URL=redis://localhost:6379/0
 ```
 
 ## Getting Started
@@ -148,14 +152,19 @@ OPENAI_API_KEY=your_openai_api_key
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/AlexTGoCreative/ChatBot
-cd ChatBot
+git clone --recurse-submodules https://github.com/AlexTGoCreative/Ozzy
+cd Ozzy
 ```
+
+> If you already cloned without `--recurse-submodules`, run:
+> ```bash
+> git submodule update --init --recursive
+> ```
 
 ### 2. Start the Express Server
 
 ```bash
-cd Server
+cd ozzy-api
 npm install
 npm run dev
 ```
@@ -165,14 +174,14 @@ The server starts on `http://localhost:5000`. It handles authentication, proxies
 ### 3. Start the Python AI Backend
 
 ```bash
-cd ChatBot-API
-python -m venv venv
+cd ozzy-ai
+python -m venv .venv
 
 # Linux/macOS
-source venv/bin/activate
+source .venv/bin/activate
 
 # Windows
-venv\Scripts\activate
+.venv\Scripts\activate
 
 pip install -r requirements.txt
 ```
@@ -196,7 +205,7 @@ The FastAPI server starts on `http://localhost:7860`. On first startup it builds
 ### 4. Start the React Frontend
 
 ```bash
-cd ChatBot
+cd ozzy-app
 npm install
 npm run dev
 ```
@@ -209,12 +218,20 @@ The frontend starts on `http://localhost:5173` with Vite's dev server. API reque
 
 Navigate to `http://localhost:5173`. Register an account, then start scanning files or chatting with Ozzy.
 
-## Docker (AI Backend only)
+## Docker
 
-The Python backend includes a Dockerfile for containerized deployment:
+**Full stack (recommended):**
 
 ```bash
-cd ChatBot-API
+docker compose up --build
+```
+
+This starts all services (frontend, API gateway, RAG AI, Redis, MongoDB).
+
+**AI Backend only:**
+
+```bash
+cd ozzy-ai
 docker build -t ozzy-ai .
 docker run -p 7860:7860 -e OPENAI_API_KEY=your_key ozzy-ai
 ```
@@ -276,31 +293,31 @@ docker run -p 7860:7860 -e OPENAI_API_KEY=your_key ozzy-ai
 
 ### Frontend Dev Server
 ```bash
-cd ChatBot && npm run dev
+cd ozzy-app && npm run dev
 ```
 Hot-reloads on file changes. Proxy configuration in `vite.config.js`.
 
 ### Express Server (with hot reload)
 ```bash
-cd Server && npm run dev
+cd ozzy-api && npm run dev
 ```
 Uses nodemon for automatic restarts.
 
 ### FastAPI (with hot reload)
 ```bash
-cd ChatBot-API && uvicorn chat_api:app --reload --port 7860
+cd ozzy-ai && uvicorn chat_api:app --reload --port 7860
 ```
 
 ### Linting
 ```bash
-cd ChatBot && npm run lint
+cd ozzy-app && npm run lint
 ```
 
 ### Production Build
 ```bash
-cd ChatBot && npm run build
+cd ozzy-app && npm run build
 ```
-Outputs to `ChatBot/dist/`. The `public/_redirects` file is included for Netlify SPA deployment.
+Outputs to `ozzy-app/dist/`. The `public/_redirects` file is included for Netlify SPA deployment.
 
 ## License
 

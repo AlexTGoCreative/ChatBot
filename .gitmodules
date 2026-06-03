@@ -1,0 +1,6 @@
+[submodule "ozzy-api"]
+	path = ozzy-api
+	url = https://github.com/AlexTGoCreative/ozzy-api.git
+[submodule "ozzy-ai"]
+	path = ozzy-ai
+	url = https://github.com/AlexTGoCreative/ozzy-ai.git
