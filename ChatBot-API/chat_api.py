@@ -28,7 +28,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('chatbot.log'),
+        logging.FileHandler('chatbot.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -266,13 +266,14 @@ async def ask(payload: ChatPayload):
             reranked_docs = [doc for doc, _ in filtered_docs]
             top_scores = [float(score) for _, score in filtered_docs]
             
-            logger.info(f"Reranking: {len(relevant_docs)} candidates → {len(reranked_docs)} above threshold "
+            logger.info(f"Reranking: {len(relevant_docs)} candidates -> {len(reranked_docs)} above threshold "
                        f"(threshold={RERANK_THRESHOLD}, top_score={top_scores[0] if top_scores else 'N/A'})")
         else:
             reranked_docs = []
             top_scores = []
         
-        performance_monitor.record_metric("reranking", time.time() - rerank_start)
+        rerank_duration = time.time() - rerank_start
+        performance_monitor.record_metric("reranking", rerank_duration)
         RERANK_LATENCY.observe(time.time() - rerank_start)
 
         # --- P0 Step 3: Abstention when no relevant docs found ---
@@ -427,7 +428,9 @@ Analysis Context:
             input_messages.append({"role": "user", "content": last_question})
 
         # --- P0 Step 5: Cache lookup ---
-        context_hash = hashlib.sha256(doc_context.encode()).hexdigest()[:16] if doc_context else "no_context"
+        # Include both doc context and scan context in key for user isolation
+        combined_context = f"{doc_context}|{scan_context}"
+        context_hash = hashlib.sha256(combined_context.encode()).hexdigest()[:16]
         cached_answer = _get_cached_response(last_question, context_hash)
         if cached_answer:
             duration = time.time() - start_time
@@ -461,8 +464,8 @@ Analysis Context:
         REQUEST_LATENCY.labels(endpoint="/ask").observe(duration)
         
         logger.info(f"Request completed in {duration:.2f}s "
-                   f"(retrieval={performance_monitor.metrics[-3]['duration']:.2f}s, "
-                   f"rerank={performance_monitor.metrics[-2]['duration']:.2f}s, "
+                   f"(retrieval={retrieval_duration:.2f}s, "
+                   f"rerank={rerank_duration:.2f}s, "
                    f"generation={gen_duration:.2f}s)")
         
         return {"answer": answer_text}
@@ -546,7 +549,15 @@ async def ask_stream(payload: ChatPayload):
         doc_context = "\n\n".join([doc.page_content for doc in reranked_docs]) if reranked_docs else ""
 
         # --- Cache check ---
-        context_hash = hashlib.sha256(doc_context.encode()).hexdigest()[:16] if doc_context else "no_context"
+        # Include scan context presence in key for user isolation
+        scan_context_str = json.dumps({
+            k: v for k, v in {
+                "scan": scan_results, "file": file_info, "process": process_info,
+                "sanitized": sanitized_info, "sandbox": sandbox_data, "url": url_data
+            }.items() if v
+        }, sort_keys=True) if has_scan_context else ""
+        combined_context = f"{doc_context}|{scan_context_str}"
+        context_hash = hashlib.sha256(combined_context.encode()).hexdigest()[:16]
         cached_answer = _get_cached_response(last_question, context_hash)
         if cached_answer:
             async def _cached_stream():
