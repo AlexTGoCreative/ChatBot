@@ -8,7 +8,7 @@
 
 ## Overview
 
-**Ozzy** is a full-stack cybersecurity scanning and analysis platform that combines OPSWAT MetaDefender Cloud with Google's Gemini 2.0 Flash AI. Users can upload files, submit URLs/IPs, or look up hashes to get multi-engine malware verdicts, sandbox analysis, and then ask an AI assistant context-aware questions about the results — powered by a Retrieval-Augmented Generation (RAG) pipeline built on MetaDefender documentation.
+**Ozzy** is a full-stack cybersecurity scanning and analysis platform that combines OPSWAT MetaDefender Cloud with OpenAI's GPT-5.4 nano model. Users can upload files, submit URLs/IPs, or look up hashes to get multi-engine malware verdicts, sandbox analysis, and then ask an AI assistant context-aware questions about the results — powered by a Retrieval-Augmented Generation (RAG) pipeline built on MetaDefender documentation.
 
 ## Architecture
 
@@ -25,7 +25,7 @@
 ┌───────────────────────────┐     ┌───────────────────────────────────┐
 │   Express Server (:5000)  │     │    FastAPI Server (:7860)         │
 │                           │     │                                   │
-│ • JWT Authentication      │     │ • Gemini 2.0 Flash LLM            │
+│ • JWT Authentication      │     │ • OpenAI GPT-5.4 nano LLM          │
 │ • MetaDefender API Proxy  │     │ • ChromaDB Vector Store            │
 │ • File upload (multer)    │     │ • HuggingFace Embeddings           │
 │ • MongoDB (users, history)│     │ • RAG pipeline with re-ranking     │
@@ -67,7 +67,7 @@
 | Frontend | React 18, Vite 6, TailwindCSS 4, Axios, SWR |
 | Server | Node.js, Express 5, Mongoose 7, Multer, JWT |
 | AI Backend | Python 3.9+, FastAPI, Uvicorn, LangChain, ChromaDB |
-| LLM | Google Gemini 2.0 Flash |
+| LLM | OpenAI GPT-5.4 nano |
 | Embeddings | sentence-transformers/all-mpnet-base-v2 |
 | Database | MongoDB (users, chat/scan history) |
 | Vector Store | ChromaDB (MetaDefender docs) |
@@ -92,7 +92,7 @@
 │   └── vite.config.js       # Dev proxy: /scan→:5000, /ask→:7860
 │
 ├── ChatBot-API/             # Python AI backend
-│   ├── chat_api.py          # FastAPI app — RAG + Gemini chat endpoint
+│   ├── chat_api.py          # FastAPI app — RAG + OpenAI chat endpoint
 │   ├── scraping_hash_lookup.py  # Scraper for MetaDefender docs (Playwright)
 │   ├── requirements.txt
 │   ├── Dockerfile
@@ -118,7 +118,7 @@
 - **Python** 3.9+
 - **MongoDB** instance (local or Atlas)
 - **OPSWAT MetaDefender Cloud API key** — [Get one here](https://metadefender.opswat.com/)
-- **Google AI API key** (Gemini) — [Get one here](https://aistudio.google.com/apikey)
+- **OpenAI API key** — [Get one here](https://platform.openai.com/api-keys)
 
 ## Environment Variables
 
@@ -140,7 +140,7 @@ JWT_SECRET=your_jwt_secret
 
 ### `ChatBot-API/.env`
 ```env
-GOOGLE_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key
 ```
 
 ## Getting Started
@@ -216,7 +216,7 @@ The Python backend includes a Dockerfile for containerized deployment:
 ```bash
 cd ChatBot-API
 docker build -t ozzy-ai .
-docker run -p 7860:7860 -e GOOGLE_API_KEY=your_key ozzy-ai
+docker run -p 7860:7860 -e OPENAI_API_KEY=your_key ozzy-ai
 ```
 
 ## API Reference
@@ -269,7 +269,7 @@ docker run -p 7860:7860 -e GOOGLE_API_KEY=your_key ozzy-ai
 5. **User opens the chat** and asks about the results
 6. **Chat request goes to FastAPI** with full scan context attached
 7. **RAG pipeline retrieves** relevant MetaDefender documentation from ChromaDB
-8. **Gemini 2.0 Flash generates** a context-aware response combining docs + scan data
+8. **GPT-5.4 nano generates** a context-aware response combining docs + scan data
 9. **All history is persisted** in MongoDB for future reference
 
 ## Development
@@ -309,6 +309,6 @@ This project is licensed under the MIT License.
 ## Acknowledgments
 
 - [OPSWAT MetaDefender](https://www.opswat.com/products/metadefender) for the multi-scanning platform
-- [Google Gemini](https://ai.google.dev/) for the generative AI model
+- [OpenAI](https://platform.openai.com/) for the generative AI model
 - [LangChain](https://www.langchain.com/) for the RAG framework
 - [ChromaDB](https://www.trychroma.com/) for vector storage

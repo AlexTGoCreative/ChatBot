@@ -2,19 +2,22 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import os
-import google.generativeai as genai
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file before initializing clients
+
+from openai import OpenAI
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from fastapi.middleware.cors import CORSMiddleware
-import shutil
 from langdetect import detect
-from functools import lru_cache
 import time
 import logging
 from datetime import datetime
 import json
+from sentence_transformers import CrossEncoder
+import numpy as np
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,19 +57,27 @@ class PerformanceMonitor:
 
 performance_monitor = PerformanceMonitor()
 
-# Cache configuration
-CACHE_SIZE = 1000
+# Chunking configuration
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
-@lru_cache(maxsize=CACHE_SIZE)
-def get_cached_response(question: str) -> Optional[str]:
-    return None  # Implement actual caching logic
+# Reranker configuration
+RERANK_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+RERANK_TOP_K = 5          # Max docs to keep after reranking
+RERANK_THRESHOLD = 0.1    # Minimum cross-encoder score to include a doc
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or "AIzaSyDmsf6rzcUXcFLt2JG1YyAGSR0Ixbdi7oY"
-genai.configure(api_key=GOOGLE_API_KEY)
+# --- Module-level singletons (P0 fixes) ---
+
+# OpenAI client — reads OPENAI_API_KEY from environment automatically
+OPENAI_MODEL = "gpt-5.4-nano"
+openai_client = OpenAI()  # Uses OPENAI_API_KEY env var
+logger.info(f"OpenAI client initialized (model: {OPENAI_MODEL})")
+
+# P0 Step 1: Cross-encoder reranker — loaded once at startup
+reranker = CrossEncoder(RERANK_MODEL_NAME)
+logger.info(f"Cross-encoder reranker loaded: {RERANK_MODEL_NAME}")
 
 DB_DIR = "chroma_db"
 
@@ -138,37 +149,57 @@ class ChatPayload(BaseModel):
 
 @app.post("/ask")
 async def ask(payload: ChatPayload):
-    start_time = time.time()  # Ensure this is a float
+    start_time = time.time()
     
     try:
-        if cached_response := get_cached_response(str(payload)):
-            logger.info("Cache hit for question")
-            return {"answer": cached_response}
-
         last_question = next((msg.text for msg in reversed(payload.chat_history) if msg.role == "user"), None)
         if not last_question:
             raise HTTPException(status_code=400, detail="No question found in chat history")
 
-        history_context = "\n".join([f"{msg.role.capitalize()}: {msg.text}" for msg in payload.chat_history]) if payload.chat_history else ""
-
+        # --- Retrieval ---
+        retrieval_start = time.time()
         retriever = vectordb.as_retriever(
             search_type="mmr",  
             search_kwargs={
-                "k": 5,
-                "fetch_k": 20,
+                "k": 10,        # Fetch more candidates for reranking
+                "fetch_k": 30,
                 "lambda_mult": 0.5
             }
         )
         
         relevant_docs = retriever.invoke(last_question)
-        
-        reranked_docs = sorted(
-            relevant_docs,
-            key=lambda x: x.metadata.get("score", 0),
-            reverse=True
-        )
+        performance_monitor.record_metric("retrieval", time.time() - retrieval_start)
 
-        model = genai.GenerativeModel("models/gemini-2.0-flash")
+        # --- P0 Step 1: Real cross-encoder reranking ---
+        rerank_start = time.time()
+        if relevant_docs:
+            # Score each (query, document) pair with the cross-encoder
+            pairs = [[last_question, doc.page_content] for doc in relevant_docs]
+            scores = reranker.predict(pairs)
+            
+            # Attach scores and sort descending
+            scored_docs = list(zip(relevant_docs, scores))
+            scored_docs.sort(key=lambda x: x[1], reverse=True)
+            
+            # P0 Step 3: Apply relevance threshold — only keep docs above minimum score
+            filtered_docs = [(doc, score) for doc, score in scored_docs if score >= RERANK_THRESHOLD]
+            
+            # Keep top-k after filtering
+            filtered_docs = filtered_docs[:RERANK_TOP_K]
+            
+            reranked_docs = [doc for doc, _ in filtered_docs]
+            top_scores = [float(score) for _, score in filtered_docs]
+            
+            logger.info(f"Reranking: {len(relevant_docs)} candidates → {len(reranked_docs)} above threshold "
+                       f"(threshold={RERANK_THRESHOLD}, top_score={top_scores[0] if top_scores else 'N/A'})")
+        else:
+            reranked_docs = []
+            top_scores = []
+        
+        performance_monitor.record_metric("reranking", time.time() - rerank_start)
+
+        # --- P0 Step 3: Abstention when no relevant docs found ---
+        has_relevant_context = len(reranked_docs) > 0
 
         scan_results = payload.scan_results or {}
         file_info = payload.file_info or {}
@@ -264,41 +295,65 @@ URL Source Reports:{sources_summary}
 
         doc_context = "\n\n".join([doc.page_content for doc in reranked_docs]) if reranked_docs else ""
 
-        prompt = f"""You are OPSWAT's advanced cybersecurity assistant. Please provide a detailed answer to the following question.
-
-Question: {last_question}
-
-"""
-        if history_context:
-            prompt += f"""
-Chat History:
-{history_context}
-"""
+        # Build system instructions (developer role)
+        system_instructions = "You are OPSWAT's advanced cybersecurity assistant. Provide a detailed, accurate answer to the user's question."
 
         if doc_context:
-            prompt += f"""
-Relevant Documentation:
+            system_instructions += f"""
+
+Relevant Documentation (use this to ground your answer):
+<<<CONTEXT_START>>>
 {doc_context}
+<<<CONTEXT_END>>>
 """
+        elif not scan_context:
+            # P0 Step 3: Abstention — no relevant docs AND no scan context
+            system_instructions += """
+
+NOTE: No relevant documentation was found for this query. If the question is about MetaDefender, OPSWAT products, or cybersecurity scanning, acknowledge that you don't have specific documentation to reference and provide your best general knowledge answer with a caveat. If the question is a general greeting or conversational, respond naturally."""
 
         if scan_context:
-            prompt += f"""
+            system_instructions += f"""
+
 Analysis Context:
 {scan_context}
 """
 
-        response = model.generate_content(prompt)
+        # Build input messages for OpenAI Responses API
+        input_messages = [
+            {"role": "developer", "content": system_instructions},
+        ]
+
+        # Add chat history as conversation turns
+        if payload.chat_history:
+            for msg in payload.chat_history:
+                role = "user" if msg.role == "user" else "assistant"
+                input_messages.append({"role": role, "content": msg.text})
+        else:
+            input_messages.append({"role": "user", "content": last_question})
+
+        # --- Generation using OpenAI Responses API ---
+        generation_start = time.time()
+        response = openai_client.responses.create(
+            model=OPENAI_MODEL,
+            input=input_messages,
+        )
+        performance_monitor.record_metric("generation", time.time() - generation_start)
         
-        # Ensure both times are floats before subtraction
+        # Record total request time
         end_time = time.time()
         duration = end_time - start_time
         performance_monitor.record_metric("total_request", duration)
         
-        return {"answer": response.text}
+        logger.info(f"Request completed in {duration:.2f}s "
+                   f"(retrieval={performance_monitor.metrics[-3]['duration']:.2f}s, "
+                   f"rerank={performance_monitor.metrics[-2]['duration']:.2f}s, "
+                   f"generation={performance_monitor.metrics[-1]['duration']:.2f}s)")
+        
+        return {"answer": response.output_text}
         
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
-        # Still try to record metrics even on error
         try:
             end_time = time.time()
             duration = end_time - start_time
@@ -312,7 +367,14 @@ Analysis Context:
 async def get_metrics():
     return {
         "average_request_time": performance_monitor.get_average_duration("total_request"),
+        "average_retrieval_time": performance_monitor.get_average_duration("retrieval"),
+        "average_reranking_time": performance_monitor.get_average_duration("reranking"),
+        "average_generation_time": performance_monitor.get_average_duration("generation"),
         "average_vectorstore_init_time": performance_monitor.get_average_duration("vectorstore_init"),
         "total_requests": len([m for m in performance_monitor.metrics if m["operation"] == "total_request"]),
-        "failed_requests": len([m for m in performance_monitor.metrics if m["operation"] == "failed_request"])
+        "failed_requests": len([m for m in performance_monitor.metrics if m["operation"] == "failed_request"]),
+        "llm_model": OPENAI_MODEL,
+        "reranker_model": RERANK_MODEL_NAME,
+        "rerank_threshold": RERANK_THRESHOLD,
+        "rerank_top_k": RERANK_TOP_K,
     }
