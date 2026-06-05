@@ -17,8 +17,6 @@ services:
       - "5000:5000"
     env_file:
       - ./ozzy-api/.env
-    depends_on:
-      - mongo
 
   ozzy-ai:
     build: ./ozzy-ai
@@ -26,20 +24,5 @@ services:
       - "7860:7860"
     env_file:
       - ./ozzy-ai/.env
-    depends_on:
-      - redis
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
 
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-
-volumes:
-  mongo-data:
