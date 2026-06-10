@@ -53,6 +53,35 @@ body {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agatha-nav-btn {
+  background: rgba(137, 180, 250, 0.1);
+  border: 1px solid rgba(137, 180, 250, 0.3);
+  color: #89b4fa;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.agatha-nav-btn:hover {
+  background: rgba(137, 180, 250, 0.2);
+  border-color: rgba(137, 180, 250, 0.5);
+}
+
+.agatha-nav-btn.active {
+  background: rgba(137, 180, 250, 0.2);
+  border-color: #89b4fa;
+  box-shadow: 0 0 8px rgba(137, 180, 250, 0.2);
+}
+
 .app-content {
   flex: 1;
   padding: 2rem;

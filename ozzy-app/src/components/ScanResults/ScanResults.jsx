@@ -5,7 +5,10 @@ import Chatbot from '../ChatBot/ChatBot';
 const ScanResults = ({ 
   scanData, 
   sandboxData, 
-  urlData, 
+  urlData,
+  agathaResult,
+  multiscanningEnabled,
+  scanFile,
   scanType, 
   onNewScan,
   user 
@@ -69,6 +72,22 @@ const ScanResults = ({
         threatName: scanData.threat_name,
         malwareFamily: scanData.malware_family,
         malwareType: scanData.malware_type
+      };
+    }
+
+    // Fallback: populate from the raw File object when multiscanning is off
+    if (scanFile) {
+      const fileName = scanFile.name || 'Unknown';
+      const ext = fileName.includes('.') ? fileName.split('.').pop() : 'unknown';
+      return {
+        name: fileName,
+        type: scanFile.type || 'Unknown',
+        size: scanFile.size,
+        extension: ext,
+        category: null,
+        sha256: null,
+        sha1: null,
+        md5: null,
       };
     }
     
@@ -195,17 +214,41 @@ const ScanResults = ({
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
+    if (!dateString || dateString === 0 || dateString === '0') return 'N/A';
+    // Handle Unix timestamps (seconds) — if it's a number less than a reasonable ms timestamp
+    const val = typeof dateString === 'string' ? Date.parse(dateString) : dateString;
+    if (typeof dateString === 'number' && dateString < 1e12) {
+      // Unix seconds → convert to ms
+      const d = new Date(dateString * 1000);
+      return d.getFullYear() <= 1970 ? 'N/A' : d.toLocaleString();
+    }
+    const d = new Date(dateString);
+    return isNaN(d.getTime()) || d.getFullYear() <= 1970 ? 'N/A' : d.toLocaleString();
   };
 
   const fileInfo = getFileInfo();
   const threatScore = getThreatScore();
   const engineResults = getScanEnginesResults();
+
+  // Add Agatha engine result to the list if available
+  if (agathaResult && agathaResult.verdict !== undefined) {
+    const verdictMap = { 0: 'Clean', 1: 'Infected', '-1': 'Unavailable' };
+    const agathaEntry = {
+      name: agathaResult.engine || 'Agatha Detection AI',
+      verdict: agathaResult.verdict === 1 
+        ? agathaResult.threat_name || 'Malicious' 
+        : agathaResult.error || verdictMap[agathaResult.verdict] || 'No Threats Detected',
+      threat: agathaResult.verdict === 1,
+      scanTime: agathaResult.scan_time,
+      defTime: agathaResult.scan_time,
+    };
+    engineResults.unshift(agathaEntry); // Put Agatha first
+  }
+
   const totalEngines = engineResults.length;
   const threatsFound = engineResults.filter(engine => engine.threat).length;
 
-  if (!fileInfo) {
+  if (!fileInfo && !agathaResult) {
     return (
       <div className="scan-results">
         <div className="scan-results-error">
@@ -258,20 +301,22 @@ const ScanResults = ({
       <div className="results-container">
         {/* Status Cards */}
         <div className="status-cards">
-          <div className={`status-card multiscanning ${threatScore === 0 ? 'clean' : 'threat'}`}>
-            <div className="status-icon">
-              <span className="icon">🛡️</span>
+          {multiscanningEnabled && (
+            <div className={`status-card multiscanning ${threatScore === 0 ? 'clean' : 'threat'}`}>
+              <div className="status-icon">
+                <span className="icon">🛡️</span>
+              </div>
+              <div className="status-content">
+                <h3>{scanType === 'url' ? 'URL Reputation' : 'Multiscanning'}</h3>
+                <p className={threatScore === 0 ? 'status-clean' : 'status-threat'}>
+                  {threatScore === 0 ? 'No Threats Detected' : `${threatsFound} Threats Found`}
+                </p>
+                {fileInfo?.threatName && (
+                  <p className="threat-name">{fileInfo.threatName}</p>
+                )}
+              </div>
             </div>
-            <div className="status-content">
-              <h3>{scanType === 'url' ? 'URL Reputation' : 'Multiscanning'}</h3>
-              <p className={threatScore === 0 ? 'status-clean' : 'status-threat'}>
-                {threatScore === 0 ? 'No Threats Detected' : `${threatsFound} Threats Found`}
-              </p>
-              {fileInfo?.threatName && (
-                <p className="threat-name">{fileInfo.threatName}</p>
-              )}
-            </div>
-          </div>
+          )}
 
           {scanType === 'url' && urlData?.whois && (
             <div className="status-card whois">
@@ -287,7 +332,33 @@ const ScanResults = ({
             </div>
           )}
 
-          {scanType === 'file' && (
+          {scanType === 'file' && agathaResult && (
+            <div className={`status-card agatha ${agathaResult.verdict === 0 ? 'clean' : agathaResult.verdict === 1 ? 'threat' : 'neutral'}`}>
+              <div className="status-icon">
+                <span className="icon">🧠</span>
+              </div>
+              <div className="status-content">
+                <h3>Agatha Detection AI</h3>
+                <p className={agathaResult.verdict === 0 ? 'status-clean' : agathaResult.verdict === 1 ? 'status-threat' : 'status-neutral'}>
+                  {agathaResult.error 
+                    ? 'Engine Unavailable'
+                    : agathaResult.verdict === 0 
+                      ? 'No Threats Detected' 
+                      : agathaResult.verdict === 1 
+                        ? (agathaResult.threat_name || 'Malicious')
+                        : 'Unknown'
+                  }
+                </p>
+                {agathaResult.malicious_probability != null && !agathaResult.error && (
+                  <p className="agatha-probability">
+                    Confidence: {agathaResult.malicious_probability.toFixed(1)}% malicious
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {scanType === 'file' && multiscanningEnabled && (
             <>
               <div className="status-card sandbox">
                 <div className="status-icon">
@@ -298,26 +369,6 @@ const ScanResults = ({
                   <p className="status-neutral">
                     {sandboxData ? 'Analysis Available' : 'No Results Available'}
                   </p>
-                </div>
-              </div>
-
-              <div className="status-card cdr">
-                <div className="status-icon">
-                  <span className="icon">📄</span>
-                </div>
-                <div className="status-content">
-                  <h3>Deep CDR™</h3>
-                  <p className="status-neutral">No Sanitization Available</p>
-                </div>
-              </div>
-
-              <div className="status-card dlp">
-                <div className="status-icon">
-                  <span className="icon">🔒</span>
-                </div>
-                <div className="status-content">
-                  <h3>Proactive DLP</h3>
-                  <p className="status-neutral">No Results Available</p>
                 </div>
               </div>
 
@@ -338,9 +389,10 @@ const ScanResults = ({
         <div className="main-content">
           <div className="left-panel">
             {/* Multiscanning Section */}
+            {(multiscanningEnabled || engineResults.length > 0) && (
             <div className="multiscanning-section">
               <div className="section-header">
-                <h2>{scanType === 'url' ? 'URL Reputation Sources' : 'Multiscanning'}</h2>
+                <h2>{scanType === 'url' ? 'URL Reputation Sources' : 'Engine Results'}</h2>
                 <div className="threat-indicator">
                   <span className={`threat-count ${threatScore === 0 ? 'clean' : 'threat'}`}>
                     {threatsFound}
@@ -364,7 +416,9 @@ const ScanResults = ({
                   {engineResults.map((engine, index) => (
                     <div key={index} className={`engine-row ${engine.threat ? 'threat' : 'clean'}`}>
                       <div className="col-engine">
-                        <span className="engine-name">{engine.name}</span>
+                        <span className="engine-name">
+                          {engine.name}
+                        </span>
                         {scanType === 'url' && engine.category && (
                           <span className="engine-category"> ({engine.category})</span>
                         )}
@@ -376,7 +430,7 @@ const ScanResults = ({
                       </div>
                       <div className="col-update">
                         <span className="update-time">
-                          {engine.scanTime ? formatDate(engine.scanTime) : 'N/A'}
+                          {engine.defTime ? formatDate(engine.defTime) : ''}
                         </span>
                       </div>
                     </div>
@@ -384,6 +438,7 @@ const ScanResults = ({
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           <div className="right-panel">
@@ -493,10 +548,12 @@ const ScanResults = ({
                     </div>
                   )}
                   
-                  <div className="overview-item">
-                    <span className="label">Category</span>
-                    <span className="value">{fileInfo?.category || 'D'}</span>
-                  </div>
+                  {fileInfo?.category && (
+                    <div className="overview-item">
+                      <span className="label">Category</span>
+                      <span className="value">{fileInfo.category}</span>
+                    </div>
+                  )}
                   
                   <div className="overview-item">
                     <span className="label">File Type</span>
@@ -592,20 +649,26 @@ const ScanResults = ({
                     </div>
                   )}
                   
-                  <div className="overview-item full-width">
-                    <span className="label">MD5</span>
-                    <span className="value hash">{fileInfo?.md5 || 'N/A'}</span>
-                  </div>
+                  {fileInfo?.md5 && (
+                    <div className="overview-item full-width">
+                      <span className="label">MD5</span>
+                      <span className="value hash">{fileInfo.md5}</span>
+                    </div>
+                  )}
                   
-                  <div className="overview-item full-width">
-                    <span className="label">SHA-1</span>
-                    <span className="value hash">{fileInfo?.sha1 || 'N/A'}</span>
-                  </div>
+                  {fileInfo?.sha1 && (
+                    <div className="overview-item full-width">
+                      <span className="label">SHA-1</span>
+                      <span className="value hash">{fileInfo.sha1}</span>
+                    </div>
+                  )}
                   
-                  <div className="overview-item full-width">
-                    <span className="label">SHA-256</span>
-                    <span className="value hash">{fileInfo?.sha256 || 'N/A'}</span>
-                  </div>
+                  {fileInfo?.sha256 && (
+                    <div className="overview-item full-width">
+                      <span className="label">SHA-256</span>
+                      <span className="value hash">{fileInfo.sha256}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

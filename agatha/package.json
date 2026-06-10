@@ -1,0 +1,23 @@
+{
+  "name": "agatha-engine-server",
+  "version": "1.0.0",
+  "description": "HTTP wrapper for the Agatha/Anderton native engine DLL",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "koffi": "^2.9.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

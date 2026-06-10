@@ -1268,3 +1268,56 @@
     font-size: 0.65rem;
   }
 }
+
+/* Agatha Engine Styles */
+.status-card.agatha {
+  border-left: 3px solid #89b4fa;
+}
+
+.status-card.agatha.clean {
+  border-left-color: #00d4aa;
+}
+
+.status-card.agatha.threat {
+  border-left-color: #ff6b6b;
+}
+
+.agatha-probability {
+  font-size: 0.7rem;
+  color: #8892b0;
+  margin-top: 2px;
+}
+
+.engine-row.agatha-row {
+  background: rgba(137, 180, 250, 0.05);
+  border-left: 3px solid #89b4fa;
+}
+
+.engine-row.agatha-row.threat {
+  background: rgba(255, 107, 107, 0.08);
+  border-left: 3px solid #ff6b6b;
+}
+
+.engine-row.agatha-row.clean {
+  border-left: 3px solid #00d4aa;
+}
+
+.agatha-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(137, 180, 250, 0.15);
+  color: #89b4fa;
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+.agatha-confidence {
+  display: block;
+  font-size: 0.65rem;
+  color: #8892b0;
+  margin-top: 2px;
+}

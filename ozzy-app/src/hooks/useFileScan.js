@@ -12,7 +12,7 @@ const fetcher = url => axios.get(url, {
   }
 }).then(res => res.data);
 
-export function useFileScan(scanSource, user) {
+export function useFileScan(scanSource, user, multiscanningEnabled = true) {
   const { cache } = useSWRConfig();
   const [data, setData] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
@@ -20,6 +20,7 @@ export function useFileScan(scanSource, user) {
   const [scanError, setScanError] = useState(null);
   const [sandboxData, setSandboxData] = useState(null);
   const [UrlData, setUrlData] = useState(null);
+  const [agathaResult, setAgathaResult] = useState(null);
   const [scanStatus, setScanStatus] = useState('idle'); // 'idle', 'scanning', 'success', 'error'
   const [scanProgress, setScanProgress] = useState(0);
   const [scanMessage, setScanMessage] = useState('');
@@ -32,6 +33,7 @@ export function useFileScan(scanSource, user) {
     setScanError(null);
     setSandboxData(null);
     setUrlData(null);
+    setAgathaResult(null);
     setScanStatus('idle');
     setScanProgress(0);
     setScanMessage('');
@@ -121,6 +123,7 @@ export function useFileScan(scanSource, user) {
       setIsComplete(false);
       setScanError(null);
       setSandboxData(null);
+      setAgathaResult(null);
       setScanProgress(0);
       
       // Set initial scanning state
@@ -129,18 +132,50 @@ export function useFileScan(scanSource, user) {
       let response;
 
       if (scanSource.type === 'file') {
-        setScanMessage('Uploading file...');
-        const formData = new FormData();
-        formData.append('file', scanSource.value);
-        response = await axios.post(`${API_URL}/scan-file`, formData, {
-          headers: { 
-            apikey: MD_API_KEY,
-            Authorization: `Bearer ${localStorage.getItem('token')}` 
-          },
-        });
-        const { hash } = response.data;
-        setHash(hash);
-        setScanMessage('Starting file scan...');
+        setScanMessage('Scanning file...');
+
+        // Always run Agatha engine scan
+        const agathaPromise = (async () => {
+          try {
+            const agathaFormData = new FormData();
+            agathaFormData.append('file', scanSource.value);
+            const agathaRes = await axios.post(`${API_URL}/agatha-scan`, agathaFormData, {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`
+              },
+            });
+            setAgathaResult(agathaRes.data);
+          } catch (agathaErr) {
+            console.error('Agatha engine scan error:', agathaErr);
+            setAgathaResult({
+              engine: 'Agatha Detection AI',
+              verdict: -1,
+              error: 'Engine unavailable'
+            });
+          }
+        })();
+
+        // Run MetaDefender multiscanning only if enabled
+        if (multiscanningEnabled) {
+          const formData = new FormData();
+          formData.append('file', scanSource.value);
+          response = await axios.post(`${API_URL}/scan-file`, formData, {
+            headers: { 
+              apikey: MD_API_KEY,
+              Authorization: `Bearer ${localStorage.getItem('token')}` 
+            },
+          });
+          const { hash } = response.data;
+          setHash(hash);
+        } else {
+          // Wait for Agatha to complete, then mark done
+          await agathaPromise;
+          setIsComplete(true);
+          setScanStatus('success');
+          setTimeout(() => {
+            setScanStatus('idle');
+          }, 2000);
+        }
       } else if (scanSource.type === 'url') {
         setScanMessage('Processing URL...');
         const encodedUrl = encodeURIComponent(scanSource.value);
@@ -222,6 +257,7 @@ export function useFileScan(scanSource, user) {
     data,
     sandboxData,
     UrlData,
+    agathaResult,
     error: error || scanError,
     isLoading: !data && !error && !scanError,
     isComplete,
