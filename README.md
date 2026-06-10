@@ -6,45 +6,51 @@
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Python](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)](https://www.python.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
 ## Overview
 
-**Ozzy** is a full-stack cybersecurity scanning and analysis platform that combines OPSWAT MetaDefender Cloud with OpenAI's GPT-5.4 nano model. Users can upload files, submit URLs/IPs, or look up hashes to get multi-engine malware verdicts, sandbox analysis, and then ask an AI assistant context-aware questions about the results — powered by a Retrieval-Augmented Generation (RAG) pipeline built on MetaDefender documentation.
+**Ozzy** is a full-stack cybersecurity scanning and analysis platform that combines OPSWAT MetaDefender Cloud multiscanning with an in-house **Agatha Detection AI** engine (ONNX ML-based malware classification) and OpenAI's GPT-5.4 nano model. Users can upload files, submit URLs/IPs, or look up hashes to get multi-engine malware verdicts, sandbox analysis, and then ask an AI assistant context-aware questions about the results — powered by a Retrieval-Augmented Generation (RAG) pipeline built on MetaDefender documentation.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         React Frontend (Vite)                       │
-│              File Upload · URL/Hash Input · Chat UI                 │
-└───────────────┬──────────────────────────────────┬──────────────────┘
-                │                                  │
-         Scan requests                       Chat messages
-         (proxy /scan)                       (proxy /ask)
-                │                                  │
-                ▼                                  ▼
-┌───────────────────────────┐     ┌───────────────────────────────────┐
-│   Express Server (:5000)  │     │    FastAPI Server (:7860)         │
-│                           │     │                                   │
-│ • JWT Authentication      │     │ • OpenAI GPT-5.4 nano LLM          │
-│ • MetaDefender API Proxy  │     │ • ChromaDB Vector Store            │
-│ • File upload (multer)    │     │ • HuggingFace Embeddings           │
-│ • MongoDB (users, history)│     │ • RAG pipeline with re-ranking     │
-│ • Chat & Scan History     │     │ • Language detection                │
-└───────────────┬───────────┘     └───────────────────────────────────┘
-                │
-                ▼
-┌───────────────────────────┐
-│  MetaDefender Cloud API   │
-│  (30+ AV engines,         │
-│   sandbox, URL scan)      │
-└───────────────────────────┘
+│        File Upload · URL/Hash Input · Chat UI · Engine Settings     │
+└──────────┬──────────────────────────────┬───────────────────────────┘
+           │                              │
+    Scan requests                    Chat messages
+    (proxy /scan)                    (proxy /ask)
+           │                              │
+           ▼                              ▼
+┌──────────────────────────┐  ┌───────────────────────────────────────┐
+│  Express Server (:5000)  │  │      FastAPI Server (:7860)           │
+│                          │  │                                       │
+│ • JWT Authentication     │  │ • OpenAI GPT-5.4 nano LLM            │
+│ • MetaDefender API Proxy │  │ • Qdrant Vector Store                 │
+│ • Agatha scan proxy      │  │ • BGE-M3 Embeddings                   │
+│ • File upload (multer)   │  │ • RAG pipeline with re-ranking        │
+│ • MongoDB (users, hist.) │  │ • Streaming SSE responses             │
+└──────────┬───────────────┘  └───────────────────────────────────────┘
+           │
+     ┌─────┴──────────────┐
+     ▼                    ▼
+┌──────────────────┐  ┌──────────────────────────┐
+│ MetaDefender     │  │  Agatha Engine (:3002)    │
+│ Cloud API        │  │                           │
+│ (30+ AV engines, │  │  • andertonengine.dll     │
+│  sandbox, URL)   │  │  • ONNX ML inference      │
+└──────────────────┘  │  • koffi FFI bindings     │
+                      │  • SDK C API              │
+                      └──────────────────────────┘
 ```
 
 ## Features
 
 ### Threat Scanning
-- **File scanning** — Upload any file for analysis by 30+ anti-malware engines via MetaDefender
+- **Agatha Detection AI** — In-house ONNX ML engine that classifies files as Clean or Infected (always runs)
+- **File scanning** — Upload any file for analysis by 30+ anti-malware engines via MetaDefender (toggleable)
 - **URL/IP scanning** — Submit URLs or IP addresses for reputation and threat assessment
 - **Hash lookup** — Check file hashes (MD5/SHA1/SHA256) against MetaDefender's database
 - **Sandbox analysis** — View dynamic analysis results for submitted samples
@@ -67,33 +73,35 @@
 |-------|-----------|
 | Frontend | React 18, Vite 6, TailwindCSS 4, Axios, SWR |
 | Server | Node.js, Express 5, Mongoose 7, Multer, JWT |
-| AI Backend | Python 3.9+, FastAPI, Uvicorn, LangChain, ChromaDB |
+| AI Backend | Python 3.11+, FastAPI, Uvicorn, Qdrant, BGE-M3 |
+| ML Engine | Rust (cdylib), ONNX Runtime, koffi (Node.js FFI) |
 | LLM | OpenAI GPT-5.4 nano |
-| Embeddings | sentence-transformers/all-mpnet-base-v2 |
+| Embeddings | BAAI/bge-m3 (dense + sparse) |
 | Database | MongoDB (users, chat/scan history) |
-| Vector Store | ChromaDB (MetaDefender docs) |
+| Vector Store | Qdrant Cloud (MetaDefender docs) |
 | External API | OPSWAT MetaDefender Cloud v4 |
 
 ## Project Structure
 
 ```
-├── ozzy-app/                # React frontend (in this repo)
+├── ozzy-app/                # React frontend
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Auth/        # Login & Register forms
-│   │   │   ├── ChatBot/     # AI chat interface
-│   │   │   ├── Form/        # File upload & URL input
+│   │   │   ├── AgathaSettings/  # Engine configuration panel
+│   │   │   ├── Auth/            # Login & Register forms
+│   │   │   ├── ChatBot/         # AI chat interface
+│   │   │   ├── Form/            # File upload & URL input
 │   │   │   ├── LoadingOverlay/  # Scan progress indicator
-│   │   │   └── ScanResults/ # Results display & export
+│   │   │   └── ScanResults/     # Results display & export
 │   │   ├── hooks/
-│   │   │   └── useFileScan.js   # Scan lifecycle management (SWR polling)
+│   │   │   └── useFileScan.js   # Scan lifecycle (Agatha + MetaDefender)
 │   │   └── utils/
-│   │       └── api.js       # HTTP client for Express server
+│   │       └── api.js           # HTTP client for Express server
 │   ├── package.json
-│   └── vite.config.js       # Dev proxy: /scan→:5000, /ask→:7860
+│   └── vite.config.js           # Dev proxy: /scan→:5000, /ask→:7860
 │
-├── ozzy-api/                # Git submodule → github.com/AlexTGoCreative/ozzy-api
-│   ├── index.js             # API routes (auth, scan proxy, history)
+├── ozzy-api/                # Express API server
+│   ├── index.js             # Routes (auth, scan proxy, agatha proxy, history)
 │   ├── middleware/
 │   │   └── auth.js          # JWT verification middleware
 │   ├── models/
@@ -102,30 +110,46 @@
 │   │   └── ScanHistory.js   # File/URL scan records
 │   └── package.json
 │
-├── ozzy-ai/                 # Git submodule → github.com/AlexTGoCreative/ozzy-ai
-│   ├── chat_api.py          # FastAPI app — RAG + OpenAI chat endpoint
-│   ├── evaluate_rag.py      # Golden set evaluation script
-│   ├── evaluation/          # Golden set Q/A pairs
-│   ├── scraping_hash_lookup.py  # Scraper for MetaDefender docs
+├── ozzy-ai/                 # RAG AI backend
+│   ├── src/
+│   │   ├── main.py          # FastAPI app — /ask, /ask/stream, /health
+│   │   ├── retrieval.py     # Qdrant hybrid search (dense + sparse)
+│   │   ├── generation.py    # OpenAI Responses API + streaming
+│   │   ├── reranking.py     # BGE-reranker-v2-m3 cross-encoder
+│   │   └── context.py       # System prompt + scan context assembly
+│   ├── scripts/
+│   │   ├── scrape_docs.py   # Playwright scraper for MD docs
+│   │   └── ingest.py        # Chunk & index into Qdrant
 │   ├── requirements.txt
-│   ├── Dockerfile
-│   └── scraped_html/        # Cached documentation text
+│   └── Dockerfile
 │
-├── docker-compose.yml       # Orchestrates all services + Redis + MongoDB
+├── agatha/                  # Agatha engine HTTP wrapper
+│   ├── index.js             # Express server wrapping native DLL via koffi
+│   ├── package.json
+│   ├── .env.example
+│   ├── .gitignore           # Ignores package/ folder
+│   └── package/             # Engine artifacts (git-ignored)
+│       ├── andertonengine.dll
+│       ├── model_classifier-*.onnx
+│       ├── onnxruntime-avx2.dll
+│       ├── falsedetection.txt
+│       └── reputation-engine/
+│
 └── README.md
 ```
 
 ## Prerequisites
 
-- **Node.js** 16+ and npm
-- **Python** 3.9+
+- **Node.js** 18+ and npm
+- **Python** 3.11+
 - **MongoDB** instance (local or Atlas)
 - **OPSWAT MetaDefender Cloud API key** — [Get one here](https://metadefender.opswat.com/)
 - **OpenAI API key** — [Get one here](https://platform.openai.com/api-keys)
+- **Agatha engine build** — Compiled `andertonengine.dll` + ONNX model (from `agatha-engine` repo)
 
 ## Environment Variables
 
-Create a `.env` file in each of the three service directories:
+Create a `.env` file in each service directory:
 
 ### `ozzy-app/.env`
 ```env
@@ -139,12 +163,21 @@ PORT=5000
 MONGODB_URI=mongodb://localhost:27017/ozzy
 METADEFENDER_API_KEY=your_metadefender_api_key
 JWT_SECRET=your_jwt_secret
+AGATHA_ENGINE_URL=http://localhost:3002
 ```
 
 ### `ozzy-ai/.env`
 ```env
 OPENAI_API_KEY=your_openai_api_key
+QDRANT_URL=your_qdrant_cloud_url
+QDRANT_API_KEY=your_qdrant_api_key
 REDIS_URL=redis://localhost:6379/0
+```
+
+### `agatha/.env`
+```env
+PORT=3002
+PACKAGE_DIR=./package
 ```
 
 ## Getting Started
@@ -161,7 +194,26 @@ cd Ozzy
 > git submodule update --init --recursive
 > ```
 
-### 2. Start the Express Server
+### 2. Start the Agatha Engine Server
+
+```bash
+cd agatha
+npm install
+```
+
+Copy the built engine package (from `agatha-engine` repo):
+```bash
+# From agatha-engine repo after building:
+cp -r target/package/* ../ChatBot/agatha/package/
+```
+
+```bash
+npm run dev
+```
+
+The Agatha server starts on `http://localhost:3002`. If the DLL is missing, it starts in degraded mode.
+
+### 3. Start the Express Server
 
 ```bash
 cd ozzy-api
@@ -169,9 +221,9 @@ npm install
 npm run dev
 ```
 
-The server starts on `http://localhost:5000`. It handles authentication, proxies scan requests to MetaDefender, and manages MongoDB data.
+The server starts on `http://localhost:5000`. It handles authentication, proxies scan requests to MetaDefender and Agatha, and manages MongoDB data.
 
-### 3. Start the Python AI Backend
+### 4. Start the Python AI Backend
 
 ```bash
 cd ozzy-ai
@@ -186,23 +238,15 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**(Optional) Scrape fresh MetaDefender documentation for the vector store:**
-
-```bash
-python scraping_hash_lookup.py
-```
-
-> This uses Playwright to fetch the latest MetaDefender API docs. The scraped content is already included in `scraped_html/`, so this step is only needed to update the knowledge base.
-
 **Start the API:**
 
 ```bash
-uvicorn chat_api:app --host 0.0.0.0 --port 7860 --reload
+uvicorn src.main:app --host 0.0.0.0 --port 7860 --reload
 ```
 
-The FastAPI server starts on `http://localhost:7860`. On first startup it builds/loads the ChromaDB vector store from the scraped documentation.
+The FastAPI server starts on `http://localhost:7860`.
 
-### 4. Start the React Frontend
+### 5. Start the React Frontend
 
 ```bash
 cd ozzy-app
@@ -210,31 +254,38 @@ npm install
 npm run dev
 ```
 
-The frontend starts on `http://localhost:5173` with Vite's dev server. API requests are proxied automatically:
-- `/scan/*` → Express server (`:5000`)
-- `/ask` → FastAPI server (`:7860`)
+The frontend starts on `http://localhost:5173` with Vite's dev server.
 
-### 5. Open the app
+### 6. Open the app
 
 Navigate to `http://localhost:5173`. Register an account, then start scanning files or chatting with Ozzy.
 
-## Docker
+## How It Works
 
-**Full stack (recommended):**
+1. **User uploads a file** → React sends it to the Express server
+2. **Agatha engine always scans** the file via the native DLL (ONNX ML inference)
+3. **If multiscanning is enabled**, Express also proxies to MetaDefender Cloud (30+ AV engines)
+4. **Frontend shows progress** overlay during scanning
+5. **Results are displayed** — engine verdicts (Agatha + MetaDefender), threat score, file metadata
+6. **User opens the chat** and asks about the results
+7. **Chat request goes to FastAPI** with full scan context attached
+8. **RAG pipeline retrieves** relevant documentation from Qdrant (hybrid search + reranking)
+9. **GPT-5.4 nano generates** a context-aware response combining docs + scan data
+10. **All history is persisted** in MongoDB for future reference
 
-```bash
-docker compose up --build
-```
+## Agatha Detection Engine
 
-This starts all services (frontend, API gateway, RAG AI, Redis, MongoDB).
+The Agatha engine is a Rust-compiled shared library (`andertonengine.dll` / `libandertonengine.so`) that classifies files using ONNX machine-learning models. It exposes a C FFI (SDK interface) with JSON-in/JSON-out semantics:
 
-**AI Backend only:**
+- `sdk_initialize()` — Load models and initialize the engine
+- `sdk_scan(json_input, &json_output)` — Scan a file, returns verdict + probabilities
+- `sdk_deinitialize()` — Cleanup
 
-```bash
-cd ozzy-ai
-docker build -t ozzy-ai .
-docker run -p 7860:7860 -e OPENAI_API_KEY=your_key ozzy-ai
-```
+The `agatha/` service wraps this native library in a Node.js HTTP server using [koffi](https://koffi.dev/) for zero-compilation FFI bindings.
+
+**Supported file types:** PE (EXE/DLL), ELF, Mach-O, PDF, OOXML (DOCX/XLSX), Images
+
+**Verdicts:** Clean (0) or Infected (1) with malicious/benign probability scores
 
 ## API Reference
 
@@ -248,6 +299,8 @@ docker run -p 7860:7860 -e OPENAI_API_KEY=your_key ozzy-ai
 | GET | `/scan/:hash` | Yes | Poll scan status by data_id |
 | GET | `/scan-url-direct?encodedUrl=` | Yes | Scan a URL directly |
 | GET | `/sandbox/:sha1` | Yes | Fetch sandbox analysis |
+| POST | `/agatha-scan` | Yes | Upload file → Agatha engine verdict |
+| GET | `/agatha-config` | Yes | Get engine availability & config |
 | GET | `/chat-history` | Yes | Get user's chat history |
 | POST | `/chat-history` | Yes | Save chat session |
 | DELETE | `/chat-history` | Yes | Clear all chat history |
@@ -255,39 +308,24 @@ docker run -p 7860:7860 -e OPENAI_API_KEY=your_key ozzy-ai
 | POST | `/scan-history` | Yes | Save scan record |
 | DELETE | `/scan-history` | Yes | Clear all scan history |
 
+### Agatha Engine Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/scan` | Scan file by path → verdict + probabilities |
+| POST | `/scan/batch` | Batch scan multiple files |
+| GET | `/config` | Engine availability & supported file types |
+| GET | `/health` | Health check |
+
 ### FastAPI Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/ask` | Send chat with scan context → AI response |
-| GET | `/metrics` | Performance metrics (request times, counts) |
-
-#### POST `/ask` payload
-
-```json
-{
-  "chatHistory": [
-    { "role": "user", "text": "Is this file safe?" },
-    { "role": "bot", "text": "..." }
-  ],
-  "scanResults": { ... },
-  "fileInfo": { ... },
-  "sandboxData": { ... },
-  "urlData": { ... }
-}
-```
-
-## How It Works
-
-1. **User uploads a file or submits a URL** → React sends it to the Express server
-2. **Express proxies to MetaDefender Cloud** → Returns a `data_id` for tracking
-3. **Frontend polls scan status** via SWR (every 5 seconds) until complete
-4. **Results are displayed** — per-engine verdicts, threat score, file metadata
-5. **User opens the chat** and asks about the results
-6. **Chat request goes to FastAPI** with full scan context attached
-7. **RAG pipeline retrieves** relevant MetaDefender documentation from ChromaDB
-8. **GPT-5.4 nano generates** a context-aware response combining docs + scan data
-9. **All history is persisted** in MongoDB for future reference
+| POST | `/ask/stream` | Streaming SSE chat response |
+| GET | `/metrics` | Performance metrics |
+| GET | `/metrics/prometheus` | Prometheus-format metrics |
+| GET | `/health` | Health check |
 
 ## Development
 
@@ -303,9 +341,15 @@ cd ozzy-api && npm run dev
 ```
 Uses nodemon for automatic restarts.
 
+### Agatha Engine Server (with hot reload)
+```bash
+cd agatha && npm run dev
+```
+Uses nodemon. Requires engine artifacts in `package/`.
+
 ### FastAPI (with hot reload)
 ```bash
-cd ozzy-ai && uvicorn chat_api:app --reload --port 7860
+cd ozzy-ai && uvicorn src.main:app --reload --port 7860
 ```
 
 ### Linting
@@ -326,6 +370,8 @@ This project is licensed under the MIT License.
 ## Acknowledgments
 
 - [OPSWAT MetaDefender](https://www.opswat.com/products/metadefender) for the multi-scanning platform
+- [Agatha Engine](https://github.com/AlinTulbure/agatha-engine) for the ML-based malware detection engine
 - [OpenAI](https://platform.openai.com/) for the generative AI model
-- [LangChain](https://www.langchain.com/) for the RAG framework
-- [ChromaDB](https://www.trychroma.com/) for vector storage
+- [koffi](https://koffi.dev/) for zero-compilation Node.js FFI bindings
+- [Qdrant](https://qdrant.tech/) for vector search
+- [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) for hybrid embeddings
