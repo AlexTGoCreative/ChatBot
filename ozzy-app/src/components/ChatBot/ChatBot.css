@@ -10,14 +10,14 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #254bbd;
+  background: var(--accent);
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   user-select: none;
 }
 
 #chatbot-toggler.has-hover:hover {
-  background: #1e3a8a;
+  background: var(--accent-strong);
   transform: scale(1.1);
   box-shadow: 0 0 25px rgba(0, 0, 0, 0.2);
 }
@@ -27,7 +27,7 @@
 }
 
 .container.show-chatbot #chatbot-toggler.has-hover:hover {
-  background: #254bbd;
+  background: var(--accent);
   transform: rotate(90deg);
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
@@ -187,6 +187,7 @@
 }
 
 .chat-body .bot-message .message-text {
+  color: #0A0F1E;
   background: #e8f0ff;
   border-radius: 0 8px 8px 8px;
 }
@@ -227,7 +228,7 @@
 }
 
 .chat-form:focus-within {
-  outline: 2px solid #254bbd;
+  outline: 2px solid var(--accent);
 }
 
 .chat-form .message-input {
@@ -249,7 +250,7 @@
   cursor: pointer;
   display: none;
   margin-right: 4px;
-  background: #254bbd;
+  background: var(--accent);
   border-radius: 50%;
   font-size: 0.9rem;
   transition: 0.2s ease;
@@ -260,7 +261,7 @@
 }
 
 .chat-form #send-message:hover {
-  background: #1e3a8a;
+  background: var(--accent-strong);
 }
 
 .header-buttons {
@@ -294,15 +295,26 @@
   bottom: 50px;
   width: 100%;
   max-width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: none;
   border-radius: 0;
-  scrollbar-width: thin;
-  scrollbar-color: #c0bec7 transparent;
   z-index: 11;
   box-sizing: border-box;
+}
+
+/* Scrollable region inside the history dropdowns. The Clear button lives
+   outside this region so it stays pinned while the list scrolls. */
+.history-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #c0bec7 transparent;
+  /* leave room so the last row isn't hidden behind the fixed Clear button */
+  padding-bottom: 52px;
 }
 
 .scan-history-table {
@@ -388,6 +400,7 @@
   position: absolute;
   bottom: 10px;
   left: 10px;
+  z-index: 2;
   padding: 8px 16px;
   background-color: #ff4444;
   color: white;
@@ -427,13 +440,12 @@
   bottom: 50px;
   width: 100%;
   max-width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: none;
   border-radius: 0;
-  scrollbar-width: thin;
-  scrollbar-color: #c0bec7 transparent;
   z-index: 12;
   box-sizing: border-box;
 }
@@ -515,6 +527,7 @@
   position: absolute;
   bottom: 10px;
   left: 10px;
+  z-index: 2;
   padding: 8px 16px;
   background-color: #ff4444;
   color: white;
@@ -612,6 +625,9 @@
     width: 100vw;
     height: 100vh;
     height: 100dvh;
+    /* Fullscreen on mobile: sit above the sticky nav (z-index 50) and the
+       toggler (z-index 1000) so the toolbar is covered, not overlapping. */
+    z-index: 1001;
     border-radius: 0;
     transform-origin: center;
     background: linear-gradient(to top, rgba(195, 206, 238, 0.5), rgba(225, 225, 225, 0.5), rgba(195, 206, 238, 0.5)), url(https://static.opswat.com/assets/images/ozzy-bg.webp);
@@ -715,7 +731,7 @@
   }
   
   #chatbot-toggler.has-hover:hover {
-    background: #254bbd;
+    background: var(--accent);
     transform: none;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   }

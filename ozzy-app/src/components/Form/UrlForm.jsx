@@ -43,114 +43,121 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen }) => {
   return (
     <>
       <div className={`form-wrapper ${isChatbotOpen ? 'chatbot-open' : ''}`}>
-        <div className="description-text">
-          <p>
-            Upload any file, URL, IP, or hash for scanning and online malware analysis. 
-            Detect ransomware with 20+ antivirus engines, inspect files with the Adaptive Sandbox, 
-            and neutralize threats with Deep CDR.{' '}
+        <div className="hero">
+          <p className="hero-sub">
+            Scan a file, URL, or file hash for malware. Every file is checked against
+            20+ anti-malware engines through MetaDefender multiscanning and the Agatha
+            AI detection engine for a fast, independent second opinion.{' '}
             <span className="learn-more-link" onClick={() => setShowModal(true)}>
               Learn more...
             </span>
           </p>
         </div>
         
-        <div className="scan-buttons-container">
-          <div className="scan-buttons-group">
-            <button 
-              className={`scan-tab-button ${activeTab === 'file' ? 'active' : ''}`}
-              onClick={() => setActiveTab('file')}
-            >
-              <span className="icon-placeholder">📄</span>
-              Scan a file
-            </button>
-            <button 
-              className={`scan-tab-button ${activeTab === 'url' ? 'active' : ''}`}
-              onClick={() => setActiveTab('url')}
-            >
-              <span className="icon-placeholder">🔗</span>
-              Search a URL
-            </button>
-            <button 
-              className={`scan-tab-button ${activeTab === 'lookup' ? 'active' : ''}`}
-              onClick={() => setActiveTab('lookup')}
-            >
-              <span className="icon-placeholder">🔍</span>
-              Lookup
-            </button>
+        <div className="scan-panel">
+          <div className="scan-buttons-container">
+            <div className="scan-buttons-group">
+              <button
+                className={`scan-tab-button ${activeTab === 'file' ? 'active' : ''}`}
+                onClick={() => setActiveTab('file')}
+              >
+                <span className="icon-placeholder">📄</span>
+                Scan a file
+              </button>
+              <button
+                className={`scan-tab-button ${activeTab === 'url' ? 'active' : ''}`}
+                onClick={() => setActiveTab('url')}
+              >
+                <span className="icon-placeholder">🔗</span>
+                Search a URL
+              </button>
+              <button
+                className={`scan-tab-button ${activeTab === 'lookup' ? 'active' : ''}`}
+                onClick={() => setActiveTab('lookup')}
+              >
+                <span className="icon-placeholder">🔍</span>
+                Lookup
+              </button>
+            </div>
+          </div>
+
+          <div className="scan-card">
+            <div className="scan-card-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none"
+                stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                <path d="M14 3v5h5" />
+                <path d="M9 13l2 2 4-4" />
+              </svg>
+            </div>
+            <div className="trust-no-file-text">
+              {activeTab === 'file' && 'Trust No File'}
+              {activeTab === 'url' && 'Trust No URL'}
+              {activeTab === 'lookup' && 'Trust No Hash'}
+            </div>
+
+            <form className={`url-form ${isScanning ? 'scanning' : ''}`} onSubmit={handleSubmit}>
+              <div className="input-container">
+                <input
+                  type="text"
+                  placeholder={getPlaceholder()}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  className="url-input"
+                  disabled={isScanning}
+                />
+                <label className="file-label">
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    className="file-input"
+                    accept="*/*"
+                    disabled={isScanning}
+                  />
+                  <span className="material-symbols-rounded attach-icon">attach_file</span>
+                </label>
+              </div>
+              <button type="submit" className="submit-button" disabled={isScanning}>
+                {isScanning ? 'Processing...' : 'Process'}
+              </button>
+            </form>
+            <p className="scan-hint">
+              {activeTab === 'file' && 'Drag & drop a file anywhere, or browse with the clip.'}
+              {activeTab === 'url' && 'Paste a full URL including http:// or https://.'}
+              {activeTab === 'lookup' && 'Paste a known MD5, SHA-1, or SHA-256 hash.'}
+            </p>
           </div>
         </div>
-
-        <div className="trust-no-file-text">
-          {activeTab === 'file' && 'Trust No File'}
-          {activeTab === 'url' && 'Trust No URL'}
-          {activeTab === 'lookup' && 'Trust No Hash'}
-        </div>
-
-        <form className={`url-form ${isScanning ? 'scanning' : ''}`} onSubmit={handleSubmit}>
-          <div className="input-container">
-            <input
-              type="text"
-              placeholder={getPlaceholder()}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              className="url-input"
-              disabled={isScanning}
-            />
-            <label className="file-label">
-              <input
-                type="file"
-                onChange={handleFileChange}
-                className="file-input"
-                accept="*/*"
-                disabled={isScanning}
-              />
-              <span className="material-symbols-rounded attach-icon">attach_file</span>
-            </label>
-          </div>
-          <button type="submit" className="submit-button" disabled={isScanning}>
-            {isScanning ? 'Processing...' : 'Process'}
-          </button>
-        </form>
       </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
-            <h2>What is MetaDefender Community?</h2>
+            <h2>About Ozzy</h2>
             <div className="modal-body">
               <p>
-                MetaDefender Community is a free, online file and malware scanner built for researchers, 
-                IT administrators, and security-conscious users.
+                Ozzy is a malware analysis workspace that combines two detection layers and
+                an assistant to help you make sense of the results.
               </p>
               <p>
-                MetaDefender Community provides advanced threat analysis and online multiscanning using 20+ 
-                anti-malware engines in a single scan, delivering results from top virus scanner technologies 
-                like McAfee and Bitdefender.
+                <strong>MetaDefender multiscanning</strong> checks every file against 20+ commercial
+                anti-malware engines in a single pass, so a threat missed by one vendor is caught
+                by another. URLs and file hashes are checked against the same reputation sources.
               </p>
               <p>
-                Unlike typical online virus scanners, MetaDefender Community includes Content Disarm and 
-                Reconstruction (CDR) to remove hidden threats from documents while keeping them usable.
+                <strong>Agatha</strong> is an AI detection engine that classifies files as clean or
+                infected using ONNX machine-learning models. It runs alongside multiscanning to give
+                an independent, signature-free second opinion, and supports PE, ELF, Mach-O, PDF,
+                OOXML, and image file types. You can configure each file type independently — layers
+                and detection thresholds — in Agatha settings.
               </p>
               <p>
-                It uses the Adaptive Sandbox to detect malware based on behavior, Proactive Data Loss 
-                Prevention (DLP) to flag sensitive data, and file-based vulnerability scanning which detects 
-                known risks in files, IPs, URLs, and file hashes.
-              </p>
-              <p>
-                Perfect for anyone needing to scan files, check URLs, or verify IPs, this free threat 
-                detection tool and malware analysis helps prevent zero-day attacks and weaponized file uploads.
-              </p>
-              <p>
-                Sign up for a free account and unlock scan history, higher scanning limits, and access to 
-                features like saved scan lists.
-              </p>
-              <p>
-                Use MetaDefender Community as your go-to online file scanner, download checker, and virus 
-                cleaner free.
+                The built-in <strong>Ozzy assistant</strong> can answer questions about a scan,
+                explain verdicts, and walk you through what a detection means.
               </p>
               <p className="modal-footer-text">
-                <strong>No installation required.</strong>
+                <strong>Your scan and chat history are saved to your account.</strong>
               </p>
             </div>
           </div>

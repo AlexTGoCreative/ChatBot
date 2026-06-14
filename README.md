@@ -29,21 +29,21 @@
 │                          │  │                                       │
 │ • JWT Authentication     │  │ • OpenAI GPT-5.4 nano LLM            │
 │ • MetaDefender API Proxy │  │ • Qdrant Vector Store                 │
-│ • Agatha scan proxy      │  │ • BGE-M3 Embeddings                   │
+│ • Agatha engine (in-proc)│  │ • BGE-M3 Embeddings                   │
 │ • File upload (multer)   │  │ • RAG pipeline with re-ranking        │
 │ • MongoDB (users, hist.) │  │ • Streaming SSE responses             │
 └──────────┬───────────────┘  └───────────────────────────────────────┘
            │
      ┌─────┴──────────────┐
      ▼                    ▼
-┌──────────────────┐  ┌──────────────────────────┐
-│ MetaDefender     │  │  Agatha Engine (:3002)    │
-│ Cloud API        │  │                           │
-│ (30+ AV engines, │  │  • andertonengine.dll     │
-│  sandbox, URL)   │  │  • ONNX ML inference      │
-└──────────────────┘  │  • koffi FFI bindings     │
-                      │  • SDK C API              │
-                      └──────────────────────────┘
+┌──────────────────┐  ┌────────────────────────────────────────────┐
+│ MetaDefender     │  │  Agatha Engine (native, in-process)        │
+│ Cloud API        │  │                                            │
+│ (30+ AV engines, │  │  • andertonengine.dll (loaded via koffi)   │
+│  sandbox, URL)   │  │  • ONNX ML inference                       │
+└──────────────────┘  │  • UIF `process` + `getWorkflowInfo` FFI   │
+                      │  • Per-file-type layers + thresholds       │
+                      └────────────────────────────────────────────┘
 ```
 
 ## Features
@@ -163,7 +163,9 @@ PORT=5000
 MONGODB_URI=mongodb://localhost:27017/ozzy
 METADEFENDER_API_KEY=your_metadefender_api_key
 JWT_SECRET=your_jwt_secret
-AGATHA_ENGINE_URL=http://localhost:3002
+# Optional — override the native engine package directory.
+# Defaults to ozzy-api/engine/package.
+# AGATHA_PACKAGE_DIR=./engine/package
 ```
 
 ### `ozzy-ai/.env`
@@ -172,12 +174,6 @@ OPENAI_API_KEY=your_openai_api_key
 QDRANT_URL=your_qdrant_cloud_url
 QDRANT_API_KEY=your_qdrant_api_key
 REDIS_URL=redis://localhost:6379/0
-```
-
-### `agatha/.env`
-```env
-PORT=3002
-PACKAGE_DIR=./package
 ```
 
 ## Getting Started
@@ -194,24 +190,20 @@ cd Ozzy
 > git submodule update --init --recursive
 > ```
 
-### 2. Start the Agatha Engine Server
+### 2. Provide the native Agatha engine package
+
+The engine DLL and ONNX models are loaded in-process by `ozzy-api`. Place the
+built engine package under `ozzy-api/engine/package/`:
 
 ```bash
-cd agatha
-npm install
+# From the agatha-engine repo after building:
+cp -r target/package/* ../ChatBot/ozzy-api/engine/package/
 ```
 
-Copy the built engine package (from `agatha-engine` repo):
-```bash
-# From agatha-engine repo after building:
-cp -r target/package/* ../ChatBot/agatha/package/
-```
-
-```bash
-npm run dev
-```
-
-The Agatha server starts on `http://localhost:3002`. If the DLL is missing, it starts in degraded mode.
+The directory should contain `andertonengine.dll` (or `libandertonengine.so`),
+the `onnxruntime-*` libraries, the `model_*.onnx` files, `falsedetection.txt`,
+and the `reputation-engine/` folder. If the DLL is missing, `ozzy-api` still
+starts and Agatha scans report "engine unavailable".
 
 ### 3. Start the Express Server
 
@@ -221,7 +213,9 @@ npm install
 npm run dev
 ```
 
-The server starts on `http://localhost:5000`. It handles authentication, proxies scan requests to MetaDefender and Agatha, and manages MongoDB data.
+The server starts on `http://localhost:5000`. It handles authentication, proxies
+scan requests to MetaDefender, runs the Agatha engine in-process via koffi FFI,
+and manages MongoDB data.
 
 ### 4. Start the Python AI Backend
 
@@ -263,7 +257,7 @@ Navigate to `http://localhost:5173`. Register an account, then start scanning fi
 ## How It Works
 
 1. **User uploads a file** → React sends it to the Express server
-2. **Agatha engine always scans** the file via the native DLL (ONNX ML inference)
+2. **If Agatha is enabled**, Express runs the native engine in-process (ONNX ML inference) with the per-file-type preferences chosen in Settings
 3. **If multiscanning is enabled**, Express also proxies to MetaDefender Cloud (30+ AV engines)
 4. **Frontend shows progress** overlay during scanning
 5. **Results are displayed** — engine verdicts (Agatha + MetaDefender), threat score, file metadata
@@ -275,13 +269,14 @@ Navigate to `http://localhost:5173`. Register an account, then start scanning fi
 
 ## Agatha Detection Engine
 
-The Agatha engine is a Rust-compiled shared library (`andertonengine.dll` / `libandertonengine.so`) that classifies files using ONNX machine-learning models. It exposes a C FFI (SDK interface) with JSON-in/JSON-out semantics:
+The Agatha engine is a Rust-compiled shared library (`andertonengine.dll` / `libandertonengine.so`) that classifies files using ONNX machine-learning models. It is loaded directly into the `ozzy-api` process via [koffi](https://koffi.dev/) (zero-compilation FFI bindings) — there is no separate engine host. JSON-in/JSON-out C functions used:
 
 - `sdk_initialize()` — Load models and initialize the engine
-- `sdk_scan(json_input, &json_output)` — Scan a file, returns verdict + probabilities
+- `getWorkflowInfo(&json_output)` — Returns the per-rule settings schema (one feature group per file-type family) that the Settings panel renders from
+- `process(json_task, &json_output)` — UIF scan entry point; honours the per-file-type `preferences` (layer toggles + thresholds) and returns a verdict
 - `sdk_deinitialize()` — Cleanup
 
-The `agatha/` service wraps this native library in a Node.js HTTP server using [koffi](https://koffi.dev/) for zero-compilation FFI bindings.
+The engine binding lives in `ozzy-api/engine/index.js`. Per-file-type configuration is sent on every scan as a flat dotted-key `preferences` map (e.g. `{ "pe": true, "pe.ml_enabled": true, "pe.threshold": 80, "image.deepscan_enabled": false }`).
 
 **Supported file types:** PE (EXE/DLL), ELF, Mach-O, PDF, OOXML (DOCX/XLSX), Images
 

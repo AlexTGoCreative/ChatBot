@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import './ScanResults.css';
 import Chatbot from '../ChatBot/ChatBot';
 
-const ScanResults = ({ 
-  scanData, 
-  sandboxData, 
+const ScanResults = ({
+  scanData,
+  // sandboxData, // Sandbox feature disabled
   urlData,
   agathaResult,
   multiscanningEnabled,
@@ -18,11 +18,13 @@ const ScanResults = ({
       scanType,
       timestamp: new Date().toISOString(),
       fileInfo: getFileInfo(),
-      threatScore: getThreatScore(),
-      engineResults: getScanEnginesResults(),
+      threatsFound,
+      totalEngines,
+      agathaResult: agathaResult || null,
+      engineResults,
       scanData: scanType === 'file' ? scanData : null,
       urlData: scanType === 'url' ? urlData : null,
-      sandboxData
+      // sandboxData // Sandbox feature disabled
     };
 
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -92,36 +94,6 @@ const ScanResults = ({
     }
     
     return null;
-  };
-
-  const getThreatScore = () => {
-    if (scanType === 'url' && urlData?.lookup_results) {
-      return urlData.lookup_results.detected_by || 0;
-    }
-    
-    if (scanData?.scan_results) {
-      // Handle new file scan format
-      if (scanData.scan_results.scan_details) {
-        const engines = Object.values(scanData.scan_results.scan_details);
-        const threatsDetected = engines.filter(engine => 
-          engine.threat_found && engine.threat_found.trim() !== ''
-        ).length;
-        
-        return Math.round((threatsDetected / engines.length) * 100);
-      }
-      
-      // Handle legacy format
-      if (scanData.scan_results.scan_all_result_a) {
-        const engines = Object.values(scanData.scan_results.scan_all_result_a);
-        const threatsDetected = engines.filter(engine => 
-          engine.threat_found && engine.threat_found.toLowerCase() !== 'no threat detected'
-        ).length;
-        
-        return Math.round((threatsDetected / engines.length) * 100);
-      }
-    }
-    
-    return 0;
   };
 
   const getScanEnginesResults = () => {
@@ -227,24 +199,38 @@ const ScanResults = ({
   };
 
   const fileInfo = getFileInfo();
-  const threatScore = getThreatScore();
-  const engineResults = getScanEnginesResults();
 
-  // Add Agatha engine result to the list if available
+  // Multiscanning / URL-reputation engines only. Agatha is tracked separately
+  // so each status card reflects exactly its own source.
+  const multiscanEngines = getScanEnginesResults();
+  const multiscanThreats = multiscanEngines.filter(engine => engine.threat).length;
+
+  // Build the Agatha entry separately, then prepend it to the combined table.
+  let agathaEntry = null;
   if (agathaResult && agathaResult.verdict !== undefined) {
-    const verdictMap = { 0: 'Clean', 1: 'Infected', '-1': 'Unavailable' };
-    const agathaEntry = {
-      name: agathaResult.engine || 'Agatha Detection AI',
-      verdict: agathaResult.verdict === 1 
-        ? agathaResult.threat_name || 'Malicious' 
+    const verdictMap = {
+      0: 'No Threats Detected',
+      1: 'Infected',
+      2: 'Inconclusive (Unknown)',
+      3: 'Unsupported File Type',
+      '-1': 'Unavailable',
+    };
+    agathaEntry = {
+      // Always display as "Agatha" regardless of any legacy engine label
+      // returned by the API or stored in history.
+      name: 'Agatha',
+      verdict: agathaResult.verdict === 1
+        ? agathaResult.threat_name || 'Malicious'
         : agathaResult.error || verdictMap[agathaResult.verdict] || 'No Threats Detected',
       threat: agathaResult.verdict === 1,
       scanTime: agathaResult.scan_time,
       defTime: agathaResult.scan_time,
     };
-    engineResults.unshift(agathaEntry); // Put Agatha first
   }
 
+  // Combined engine list (Agatha first) used by the Engine Results table and
+  // its overall verdict — so a detection from *any* engine is reflected.
+  const engineResults = agathaEntry ? [agathaEntry, ...multiscanEngines] : multiscanEngines;
   const totalEngines = engineResults.length;
   const threatsFound = engineResults.filter(engine => engine.threat).length;
 
@@ -302,14 +288,16 @@ const ScanResults = ({
         {/* Status Cards */}
         <div className="status-cards">
           {multiscanningEnabled && (
-            <div className={`status-card multiscanning ${threatScore === 0 ? 'clean' : 'threat'}`}>
+            <div className={`status-card multiscanning ${multiscanThreats === 0 ? 'clean' : 'threat'}`}>
               <div className="status-icon">
                 <span className="icon">🛡️</span>
               </div>
               <div className="status-content">
                 <h3>{scanType === 'url' ? 'URL Reputation' : 'Multiscanning'}</h3>
-                <p className={threatScore === 0 ? 'status-clean' : 'status-threat'}>
-                  {threatScore === 0 ? 'No Threats Detected' : `${threatsFound} Threats Found`}
+                <p className={multiscanThreats === 0 ? 'status-clean' : 'status-threat'}>
+                  {multiscanThreats === 0
+                    ? 'No Threats Detected'
+                    : `${multiscanThreats} ${multiscanThreats === 1 ? 'Threat' : 'Threats'} Found`}
                 </p>
                 {fileInfo?.threatName && (
                   <p className="threat-name">{fileInfo.threatName}</p>
@@ -335,21 +323,24 @@ const ScanResults = ({
           {scanType === 'file' && agathaResult && (
             <div className={`status-card agatha ${agathaResult.verdict === 0 ? 'clean' : agathaResult.verdict === 1 ? 'threat' : 'neutral'}`}>
               <div className="status-icon">
-                <span className="icon">🧠</span>
+                <span className="icon">⚔️</span>
               </div>
               <div className="status-content">
-                <h3>Agatha Detection AI</h3>
+                <h3>Agatha</h3>
                 <p className={agathaResult.verdict === 0 ? 'status-clean' : agathaResult.verdict === 1 ? 'status-threat' : 'status-neutral'}>
-                  {agathaResult.error 
+                  {agathaResult.error
                     ? 'Engine Unavailable'
-                    : agathaResult.verdict === 0 
-                      ? 'No Threats Detected' 
-                      : agathaResult.verdict === 1 
+                    : agathaResult.verdict === 0
+                      ? 'No Threats Detected'
+                      : agathaResult.verdict === 1
                         ? (agathaResult.threat_name || 'Malicious')
-                        : 'Unknown'
+                        : agathaResult.verdict === 3
+                          ? 'Unsupported File Type'
+                          : 'Inconclusive (Unknown)'
                   }
                 </p>
-                {agathaResult.malicious_probability != null && !agathaResult.error && (
+                {agathaResult.malicious_probability != null && !agathaResult.error &&
+                  agathaResult.verdict !== 3 && (
                   <p className="agatha-probability">
                     Confidence: {agathaResult.malicious_probability.toFixed(1)}% malicious
                   </p>
@@ -358,31 +349,6 @@ const ScanResults = ({
             </div>
           )}
 
-          {scanType === 'file' && multiscanningEnabled && (
-            <>
-              <div className="status-card sandbox">
-                <div className="status-icon">
-                  <span className="icon">🔬</span>
-                </div>
-                <div className="status-content">
-                  <h3>Adaptive Sandbox</h3>
-                  <p className="status-neutral">
-                    {sandboxData ? 'Analysis Available' : 'No Results Available'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="status-card vulnerabilities">
-                <div className="status-icon">
-                  <span className="icon">🛡️</span>
-                </div>
-                <div className="status-content">
-                  <h3>Vulnerabilities</h3>
-                  <p className="status-clean">No Vulnerabilities Found</p>
-                </div>
-              </div>
-            </>
-          )}
         </div>
 
         {/* Main Content Area */}
@@ -394,16 +360,18 @@ const ScanResults = ({
               <div className="section-header">
                 <h2>{scanType === 'url' ? 'URL Reputation Sources' : 'Engine Results'}</h2>
                 <div className="threat-indicator">
-                  <span className={`threat-count ${threatScore === 0 ? 'clean' : 'threat'}`}>
+                  <span className={`threat-count ${threatsFound === 0 ? 'clean' : 'threat'}`}>
                     {threatsFound}
                   </span>
                   <span className="total-engines">/{totalEngines}</span>
                   <span className="engines-label">{scanType === 'url' ? 'SOURCES' : 'ENGINES'}</span>
                 </div>
               </div>
-              
-              <div className={`scan-status ${threatScore === 0 ? 'clean' : 'threat'}`}>
-                {threatScore === 0 ? 'No Threats Detected' : `${threatsFound} Threats Detected`}
+
+              <div className={`scan-status ${threatsFound === 0 ? 'clean' : 'threat'}`}>
+                {threatsFound === 0
+                  ? 'No Threats Detected'
+                  : `${threatsFound} ${threatsFound === 1 ? 'Threat' : 'Threats'} Detected`}
               </div>
 
               <div className="engines-table">
@@ -673,7 +641,7 @@ const ScanResults = ({
               </div>
             )}
 
-            {/* Sandbox Analysis */}
+            {/* Sandbox Analysis — feature disabled, only multiscanning + Agatha are active.
             {sandboxData && (
               <div className="sandbox-section">
                 <h2>Sandbox Analysis</h2>
@@ -816,12 +784,21 @@ const ScanResults = ({
                 )}
               </div>
             )}
+            */}
 
-            {/* Scan History */}
+            {/* Scan Details */}
             <div className="scan-history-section">
-              <h2>Scan History</h2>
+              <h2>Scan Details</h2>
               <p className="scan-history-info">
-                This {scanType === 'url' ? 'URL' : 'file'} has been scanned 1 time
+                {(() => {
+                  const scannedAt = scanType === 'url'
+                    ? urlData?.lookup_results?.start_time
+                    : (scanData?.scan_results?.scan_time || agathaResult?.scan_time);
+                  const when = scannedAt ? formatDate(scannedAt) : null;
+                  return when && when !== 'N/A'
+                    ? `Last scanned on ${when}`
+                    : `${scanType === 'url' ? 'URL' : 'File'} scanned just now`;
+                })()}
               </p>
             </div>
           </div>
@@ -831,10 +808,10 @@ const ScanResults = ({
       {/* Chatbot Component */}
       {user && (
         <Chatbot 
-          Data={{ 
-            ScanningData: scanData, 
-            SandboxData: sandboxData, 
-            UrlScanData: urlData 
+          Data={{
+            ScanningData: scanData,
+            // SandboxData: sandboxData, // Sandbox feature disabled
+            UrlScanData: urlData
           }}
           user={user}
         />

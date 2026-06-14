@@ -119,16 +119,17 @@ export const api = {
     }
   },
 
-  getSandboxData: async (sha1) => {
-    try {
-      const response = await axios.get(`${API_URL}/sandbox/${sha1}`, {
-        headers: getHeaders()
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch sandbox data');
-    }
-  },
+  // Sandbox feature disabled — only multiscanning + Agatha are active.
+  // getSandboxData: async (sha1) => {
+  //   try {
+  //     const response = await axios.get(`${API_URL}/sandbox/${sha1}`, {
+  //       headers: getHeaders()
+  //     });
+  //     return response.data;
+  //   } catch (error) {
+  //     throw new Error(error.response?.data?.message || 'Failed to fetch sandbox data');
+  //   }
+  // },
 
   getUrlScanData: async (encodedUrl) => {
     try {

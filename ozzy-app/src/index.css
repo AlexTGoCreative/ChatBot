@@ -3,6 +3,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Ozzy design tokens — single source of truth for the palette.
+   Used across the nav, scan results, and Agatha settings so the
+   whole app shares one cohesive security-console look.
+   ============================================================ */
+:root {
+  /* Base surfaces — aligned to the MetaDefender Cloud palette
+     (app bg #0C121D, cards #141B27) for a cohesive enterprise look. */
+  --bg: #0c121d;
+  --bg-2: #0e1626;
+  --surface-1: #141b27;
+  --surface-2: #1a2333;
+  --surface-3: #243149;
+
+  /* Borders / hairlines (subtle blue-grey, matches MetaDefender card edges) */
+  --border: rgba(148, 163, 196, 0.16);
+  --border-strong: rgba(148, 163, 196, 0.30);
+
+  /* Text */
+  --text: #f8f9f9;
+  --text-muted: #c7ccd5;
+  --text-faint: #6f7d99;
+
+  /* Brand accent (MetaDefender vivid blue #1D6BFC) */
+  --accent: #1d6bfc;
+  --accent-hover: #4a8bff;
+  --accent-strong: #1559d6;
+  --accent-soft: rgba(29, 107, 252, 0.14);
+  --accent-ring: rgba(29, 107, 252, 0.40);
+
+  /* Status colors */
+  --safe: #2fe0b0;
+  --safe-soft: rgba(47, 224, 176, 0.12);
+  --danger: #ff6e75;
+  --danger-soft: rgba(255, 110, 117, 0.12);
+  --warn: #f7b955;
+  --warn-soft: rgba(247, 185, 85, 0.12);
+
+  /* Radii & elevation — small radius for the sharp, enterprise feel */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px -14px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 24px 60px -24px rgba(0, 0, 0, 0.8);
+  --shadow-accent: 0 8px 28px -12px rgba(29, 107, 252, 0.45);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -13,7 +61,13 @@
 body {
   width: 100%;
   min-height: 100vh;
-  background: #0A0F1E;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 700px at 82% -12%, rgba(29, 107, 252, 0.08), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .app-container {
@@ -22,65 +76,7 @@ body {
   flex-direction: column;
 }
 
-.app-nav {
-  background: #111F42;
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.user-info {
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.logout-button {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.logout-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.agatha-nav-btn {
-  background: rgba(137, 180, 250, 0.1);
-  border: 1px solid rgba(137, 180, 250, 0.3);
-  color: #89b4fa;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
-}
-
-.agatha-nav-btn:hover {
-  background: rgba(137, 180, 250, 0.2);
-  border-color: rgba(137, 180, 250, 0.5);
-}
-
-.agatha-nav-btn.active {
-  background: rgba(137, 180, 250, 0.2);
-  border-color: #89b4fa;
-  box-shadow: 0 0 8px rgba(137, 180, 250, 0.2);
-}
+/* Top toolbar styles live in components/Navbar/Navbar.css */
 
 .app-content {
   flex: 1;
@@ -90,62 +86,20 @@ body {
   width: 100%;
 }
 
-/* Mobile Styles for App Navigation */
+/* Responsive content padding */
 @media (max-width: 768px) {
-  .app-nav {
-    padding: 0.75rem 1rem;
-  }
-
-  .user-info {
-    font-size: 0.85rem;
-  }
-
-  .logout-button {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-
   .app-content {
     padding: 1rem;
   }
 }
 
 @media (max-width: 480px) {
-  .app-nav {
-    padding: 0.6rem 0.75rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .user-info {
-    font-size: 0.8rem;
-    flex: 1;
-  }
-
-  .logout-button {
-    padding: 0.35rem 0.7rem;
-    font-size: 0.75rem;
-  }
-
   .app-content {
     padding: 0.75rem;
   }
 }
 
 @media (max-width: 360px) {
-  .app-nav {
-    padding: 0.5rem;
-  }
-
-  .user-info {
-    font-size: 0.75rem;
-  }
-
-  .logout-button {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.7rem;
-  }
-
   .app-content {
     padding: 0.5rem;
   }

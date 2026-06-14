@@ -12,13 +12,14 @@ const fetcher = url => axios.get(url, {
   }
 }).then(res => res.data);
 
-export function useFileScan(scanSource, user, multiscanningEnabled = true) {
+export function useFileScan(scanSource, user, multiscanningEnabled = true, agathaSettings = null) {
   const { cache } = useSWRConfig();
   const [data, setData] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
   const [hash, setHash] = useState(null);
   const [scanError, setScanError] = useState(null);
-  const [sandboxData, setSandboxData] = useState(null);
+  // Sandbox feature disabled — only multiscanning + Agatha are active.
+  // const [sandboxData, setSandboxData] = useState(null);
   const [UrlData, setUrlData] = useState(null);
   const [agathaResult, setAgathaResult] = useState(null);
   const [scanStatus, setScanStatus] = useState('idle'); // 'idle', 'scanning', 'success', 'error'
@@ -31,7 +32,7 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true) {
     setIsComplete(false);
     setHash(null);
     setScanError(null);
-    setSandboxData(null);
+    // setSandboxData(null);
     setUrlData(null);
     setAgathaResult(null);
     setScanStatus('idle');
@@ -84,23 +85,24 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true) {
             setScanMessage('');
           }, 2000);
 
-          const sandboxId = newData?.last_sandbox_id?.[0]?.sandbox_id;
-          const sha1 = newData?.file_info?.sha1;
-
-          if (sandboxId && sha1) {
-            try {
-              const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
-                headers: {
-                  apikey: MD_API_KEY,
-                  Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
-              });
-              setSandboxData(sandboxRes.data);
-              console.log("Sandbox Data:", sandboxRes.data);
-            } catch (err) {
-              console.error("Error fetching sandbox data:", err);
-            }
-          }
+          // Sandbox feature disabled — only multiscanning + Agatha are active.
+          // const sandboxId = newData?.last_sandbox_id?.[0]?.sandbox_id;
+          // const sha1 = newData?.file_info?.sha1;
+          //
+          // if (sandboxId && sha1) {
+          //   try {
+          //     const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
+          //       headers: {
+          //         apikey: MD_API_KEY,
+          //         Authorization: `Bearer ${localStorage.getItem('token')}`
+          //       }
+          //     });
+          //     setSandboxData(sandboxRes.data);
+          //     console.log("Sandbox Data:", sandboxRes.data);
+          //   } catch (err) {
+          //     console.error("Error fetching sandbox data:", err);
+          //   }
+          // }
         }
       },
       onError: (err) => {
@@ -122,7 +124,7 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true) {
       setHash(null);
       setIsComplete(false);
       setScanError(null);
-      setSandboxData(null);
+      // setSandboxData(null);
       setAgathaResult(null);
       setScanProgress(0);
       
@@ -134,26 +136,43 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true) {
       if (scanSource.type === 'file') {
         setScanMessage('Scanning file...');
 
-        // Always run Agatha engine scan
-        const agathaPromise = (async () => {
-          try {
-            const agathaFormData = new FormData();
-            agathaFormData.append('file', scanSource.value);
-            const agathaRes = await axios.post(`${API_URL}/agatha-scan`, agathaFormData, {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem('token')}`
-              },
-            });
-            setAgathaResult(agathaRes.data);
-          } catch (agathaErr) {
-            console.error('Agatha engine scan error:', agathaErr);
-            setAgathaResult({
-              engine: 'Agatha Detection AI',
-              verdict: -1,
-              error: 'Engine unavailable'
-            });
-          }
-        })();
+        // Run the Agatha engine scan only when the user enabled it in settings.
+        const agathaEnabled = !!agathaSettings?.enabled;
+
+        // With no scanner selected there is nothing to run — surface a clear
+        // error instead of silently "completing" with an empty result page.
+        if (!multiscanningEnabled && !agathaEnabled) {
+          setScanStatus('error');
+          setScanMessage('No scanner enabled. Turn on Multiscanning or the Agatha engine to scan a file.');
+          return;
+        }
+        const agathaPromise = agathaEnabled
+          ? (async () => {
+              try {
+                const agathaFormData = new FormData();
+                agathaFormData.append('file', scanSource.value);
+                // Per-file-type preferences chosen in Agatha settings (layer
+                // toggles + thresholds). Sent as a JSON string; when absent the
+                // engine falls back to its built-in profile defaults.
+                if (agathaSettings?.preferences && typeof agathaSettings.preferences === 'object') {
+                  agathaFormData.append('preferences', JSON.stringify(agathaSettings.preferences));
+                }
+                const agathaRes = await axios.post(`${API_URL}/agatha-scan`, agathaFormData, {
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                  },
+                });
+                setAgathaResult(agathaRes.data);
+              } catch (agathaErr) {
+                console.error('Agatha engine scan error:', agathaErr);
+                setAgathaResult({
+                  engine: 'Agatha',
+                  verdict: -1,
+                  error: 'Engine unavailable'
+                });
+              }
+            })()
+          : Promise.resolve();
 
         // Run MetaDefender multiscanning only if enabled
         if (multiscanningEnabled) {
@@ -208,25 +227,25 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true) {
         setScanStatus('success');
         setScanMessage('Hash lookup completed successfully!');
         
-        // Check for sandbox data if available
-        const sandboxId = response.data?.last_sandbox_id?.[0]?.sandbox_id;
-        const sha1 = response.data?.file_info?.sha1;
+        // Sandbox feature disabled — only multiscanning + Agatha are active.
+        // const sandboxId = response.data?.last_sandbox_id?.[0]?.sandbox_id;
+        // const sha1 = response.data?.file_info?.sha1;
+        //
+        // if (sandboxId && sha1) {
+        //   try {
+        //     const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
+        //       headers: {
+        //         apikey: MD_API_KEY,
+        //         Authorization: `Bearer ${localStorage.getItem('token')}`
+        //       }
+        //     });
+        //     setSandboxData(sandboxRes.data);
+        //     console.log("Sandbox Data:", sandboxRes.data);
+        //   } catch (err) {
+        //     console.error("Error fetching sandbox data:", err);
+        //   }
+        // }
 
-        if (sandboxId && sha1) {
-          try {
-            const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
-              headers: {
-                apikey: MD_API_KEY,
-                Authorization: `Bearer ${localStorage.getItem('token')}`
-              }
-            });
-            setSandboxData(sandboxRes.data);
-            console.log("Sandbox Data:", sandboxRes.data);
-          } catch (err) {
-            console.error("Error fetching sandbox data:", err);
-          }
-        }
-        
         // Auto-hide success message after 2 seconds
         setTimeout(() => {
           setScanStatus('idle');
@@ -253,9 +272,17 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true) {
     }
   };
 
+  // Dismiss the overlay (e.g. after an error) so the user isn't stuck behind a
+  // blocking layer with no way out.
+  const dismissScan = () => {
+    setScanStatus('idle');
+    setScanMessage('');
+    setScanError(null);
+  };
+
   return {
     data,
-    sandboxData,
+    // sandboxData, // Sandbox feature disabled
     UrlData,
     agathaResult,
     error: error || scanError,
@@ -266,6 +293,7 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true) {
     scanProgress,
     scanMessage,
     retryScan,
+    dismissScan,
     scanType: scanSource?.type,
   };
 }

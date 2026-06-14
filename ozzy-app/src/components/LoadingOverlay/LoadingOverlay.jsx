@@ -1,11 +1,12 @@
 import React from 'react';
 import './LoadingOverlay.css';
 
-const LoadingOverlay = ({ 
-  isVisible, 
+const LoadingOverlay = ({
+  isVisible,
   status, // 'scanning', 'success', 'error'
   message,
   onRetry,
+  onClose,
   scanType // 'file' or 'url'
 }) => {
   if (!isVisible) return null;
@@ -43,6 +44,11 @@ const LoadingOverlay = ({
   return (
     <div className="loading-overlay">
       <div className="loading-content">
+        {status === 'error' && onClose && (
+          <button className="loading-close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        )}
         <div className="loading-icon">
           {getIcon()}
         </div>
@@ -50,9 +56,11 @@ const LoadingOverlay = ({
           {getMessage()}
         </div>
         {status === 'error' && onRetry && (
-          <button className="retry-button" onClick={onRetry}>
-            Try Again
-          </button>
+          <div className="loading-actions">
+            <button className="retry-button" onClick={onRetry}>
+              Try Again
+            </button>
+          </div>
         )}
       </div>
     </div>

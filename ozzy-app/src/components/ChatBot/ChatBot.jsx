@@ -21,7 +21,8 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
   const [userInitiatedScan, setUserInitiatedScan] = useState(false);
   const [previousScanData, setPreviousScanData] = useState(null);
 
-  const { ScanningData, SandboxData, UrlScanData } = localData;
+  // SandboxData disabled — only multiscanning + Agatha are active.
+  const { ScanningData, UrlScanData } = localData;
   const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100 || UrlScanData?.lookup_results?.start_time;
 
   useEffect(() => {
@@ -80,7 +81,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       if (ScanningData) {
         const dataId = ScanningData?.data_id || "";
         const sha1 = ScanningData?.file_info?.sha1 || "";
-        const sandboxId = ScanningData?.last_sandbox_id?.[0]?.sandbox_id || "";
+        // const sandboxId = ScanningData?.last_sandbox_id?.[0]?.sandbox_id || ""; // Sandbox disabled
         const displayName = ScanningData?.file_info?.display_name || "Unknown File";
         const verdict = ScanningData?.process_info?.verdicts?.[0] || "No verdict available";
 
@@ -91,7 +92,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
           verdict,
           dataId,
           sha1,
-          sandboxId,
+          // sandboxId, // Sandbox disabled
         };
         scanType = 'file';
       } else if (UrlScanData) {
@@ -164,7 +165,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
         file_info: ScanningData?.file_info || null,
         process_info: ScanningData?.process_info || null,
         sanitized_info: ScanningData?.sanitized || null,
-        sandbox_data: SandboxData || null,
+        // sandbox_data: SandboxData || null, // Sandbox disabled
         url_data: UrlScanData || null,
       }),
     };
@@ -190,7 +191,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
 
     try {
       let newScanningData = null;
-      let newSandboxData = null;
+      // let newSandboxData = null; // Sandbox disabled
       let newUrlScanData = null;
 
       if (entry.type === "file") {
@@ -198,9 +199,10 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
           newScanningData = await api.getScanData(entry.dataId);
         }
 
-        if (entry.sha1 && entry.sandboxId) {
-          newSandboxData = await api.getSandboxData(entry.sha1);
-        }
+        // Sandbox disabled — only multiscanning + Agatha are active.
+        // if (entry.sha1 && entry.sandboxId) {
+        //   newSandboxData = await api.getSandboxData(entry.sha1);
+        // }
       } else if (entry.type === "url") {
         const encodedUrl = encodeURIComponent(entry.address);
         newUrlScanData = await api.getUrlScanData(encodedUrl);
@@ -208,13 +210,13 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
 
       setLocalData({
         ScanningData: newScanningData,
-        SandboxData: newSandboxData,
+        // SandboxData: newSandboxData, // Sandbox disabled
         UrlScanData: newUrlScanData,
       });
 
       onSelectHistory?.({
         ScanningData: newScanningData,
-        SandboxData: newSandboxData,
+        // SandboxData: newSandboxData, // Sandbox disabled
         UrlScanData: newUrlScanData,
       });
 
@@ -256,15 +258,15 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
     setChatHistory(convertedMessages);
     setLocalData({
       ScanningData: entry.scanData || null,
-      SandboxData: entry.sandboxData || null,
+      // SandboxData: entry.sandboxData || null, // Sandbox disabled
       UrlScanData: entry.urlData || null,
     });
-    
+
     setSelectedChatHistoryId(entry._id);
-    
+
     onSelectHistory?.({
       ScanningData: entry.scanData || null,
-      SandboxData: entry.sandboxData || null,
+      // SandboxData: entry.sandboxData || null, // Sandbox disabled
       UrlScanData: entry.urlData || null,
     });
   };
@@ -287,7 +289,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       setChatHistory([]);
       setLocalData({
         ScanningData: null,
-        SandboxData: null,
+        // SandboxData: null, // Sandbox disabled
         UrlScanData: null
       });
       setUserInitiatedScan(false);
@@ -313,7 +315,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       const historyData = {
         messages,
         scanData: ScanningData || null,
-        sandboxData: SandboxData || null,
+        // sandboxData: SandboxData || null, // Sandbox disabled
         urlData: UrlScanData || null,
         chatId: selectedChatHistoryId
       };
@@ -343,10 +345,14 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
 
     if (entry.type === "file") {
       verdict = entry.verdict || "No verdict available";
-      if (verdict === "No Threat Detected") {
-        color = "green";
-      } else if (verdict.toLowerCase().includes("infected")) {
+      // Match defensively: verdicts come from different engines and may be
+      // worded as "No Threat Detected" (MetaDefender) or "No Threats Detected"
+      // (in-app label), and threats as "Infected"/"Malicious".
+      const v = verdict.toLowerCase();
+      if (v.includes("infected") || v.includes("malicious")) {
         color = "red";
+      } else if (v.includes("no threat")) {
+        color = "green";
       } else {
         color = "default";
       }
@@ -451,6 +457,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
             >
               Clear
             </button>
+            <div className="history-scroll">
             {scanHistory.length === 0 && <p className="scan-history-empty">No saved scans.</p>}
             {scanHistory.length > 0 && (
               <table className="scan-history-table">
@@ -483,6 +490,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
                 </tbody>
               </table>
             )}
+            </div>
           </div>
         )}
 
@@ -494,6 +502,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
             >
               Clear
             </button>
+            <div className="history-scroll">
             {savedChatHistories.length === 0 && <p className="chat-history-empty">No saved chats.</p>}
             {savedChatHistories.length > 0 && (
               <table className="chat-history-table">
@@ -522,6 +531,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
                 </tbody>
               </table>
             )}
+            </div>
           </div>
         )}
 

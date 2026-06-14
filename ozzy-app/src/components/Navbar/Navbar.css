@@ -1,0 +1,91 @@
+/* Global top toolbar — shared by the scan and results views.
+   Locked to the shared design tokens (MetaDefender-style enterprise look). */
+.ozzy-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: linear-gradient(180deg, rgba(20, 27, 39, 0.92), rgba(14, 18, 30, 0.85));
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+.ozzy-nav-inner {
+  width: 100%;
+  padding: 0.6rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Brand */
+.ozzy-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.ozzy-nav-logo {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+}
+
+.ozzy-nav-name {
+  font-size: 1.025rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+/* Actions */
+.ozzy-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+/* Plain text nav link (MetaDefender "Product / Integrations" style) */
+.ozzy-nav-link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.35rem 0.4rem;
+  transition: color 0.16s ease;
+}
+
+.ozzy-nav-link:hover {
+  color: var(--text);
+}
+
+/* Filled blue CTA button (MetaDefender "Sign In" style) */
+.ozzy-nav-cta {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 0.42rem 1rem;
+  border-radius: var(--r-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.ozzy-nav-cta:hover {
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-accent);
+}
+
+@media (max-width: 600px) {
+  .ozzy-nav-inner {
+    padding: 0.6rem 1rem;
+  }
+}
