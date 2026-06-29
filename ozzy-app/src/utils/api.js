@@ -142,14 +142,16 @@ export const api = {
     }
   },
 
-  getHashLookup: async (hash) => {
+  // Agatha URL (Hyperlink) engine — independent ONNX verdict for a single URL,
+  // the URL counterpart to the file Agatha engine.
+  getAgathaUrlScan: async (url) => {
     try {
-      const response = await axios.get(`${API_URL}/hash-lookup/${hash}`, {
+      const response = await axios.get(`${API_URL}/agatha-url-scan?url=${encodeURIComponent(url)}`, {
         headers: getHeaders()
       });
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch hash lookup data');
+      throw new Error(error.response?.data?.message || 'Failed to fetch Agatha URL scan data');
     }
   }
-}; 
+};

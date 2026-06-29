@@ -151,12 +151,19 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
               try {
                 const agathaFormData = new FormData();
                 agathaFormData.append('file', scanSource.value);
+                // Operating mode: 'detection' (binary) or 'deflection' (ternary).
+                // The engine echoes it back on the result so the UI can render
+                // the matching verdict regime.
+                const mode = agathaSettings?.mode || 'detection';
                 // Per-file-type preferences chosen in Agatha settings (layer
-                // toggles + thresholds). Sent as a JSON string; when absent the
-                // engine falls back to its built-in profile defaults.
-                if (agathaSettings?.preferences && typeof agathaSettings.preferences === 'object') {
-                  agathaFormData.append('preferences', JSON.stringify(agathaSettings.preferences));
+                // toggles + thresholds) for the ACTIVE mode only. Sent as a JSON
+                // string; when absent/empty the engine falls back to that mode's
+                // built-in profile defaults.
+                const prefs = agathaSettings?.preferences?.[mode];
+                if (prefs && typeof prefs === 'object' && Object.keys(prefs).length > 0) {
+                  agathaFormData.append('preferences', JSON.stringify(prefs));
                 }
+                agathaFormData.append('mode', mode);
                 const agathaRes = await axios.post(`${API_URL}/agatha-scan`, agathaFormData, {
                   headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -197,54 +204,59 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
         }
       } else if (scanSource.type === 'url') {
         setScanMessage('Processing URL...');
+
+        // URLs mirror the file flow: MetaDefender URL reputation (gated by
+        // multiscanning) runs alongside the Agatha URL engine (gated by Agatha
+        // settings) so the two verdicts can be compared. The Agatha verdict is
+        // merged into the URL data object under `.agatha`.
+        const agathaEnabled = !!agathaSettings?.enabled;
+
+        if (!multiscanningEnabled && !agathaEnabled) {
+          setScanStatus('error');
+          setScanMessage('No scanner enabled. Turn on Multiscanning or the Agatha engine to scan a URL.');
+          return;
+        }
+
         const encodedUrl = encodeURIComponent(scanSource.value);
-        const response = await axios.get(`${API_URL}/scan-url-direct?encodedUrl=${encodedUrl}`, {
-          headers: { 
-            apikey: MD_API_KEY,
-            Authorization: `Bearer ${localStorage.getItem('token')}` 
-          },
-        });
-        setUrlData(response.data);
+
+        // Agatha URL engine (independent ONNX verdict). Never throws — surfaces
+        // a graceful "unavailable" entry so it can't break the MetaDefender flow.
+        const agathaMode = agathaSettings?.mode || 'detection';
+        const agathaUrlPromise = agathaEnabled
+          ? axios.get(`${API_URL}/agatha-url-scan?url=${encodedUrl}&mode=${agathaMode}`, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            })
+              .then(r => r.data)
+              .catch(agathaErr => {
+                console.error('Agatha URL engine scan error:', agathaErr);
+                return { engine: 'Agatha URL', verdict: -1, error: 'Engine unavailable' };
+              })
+          : Promise.resolve(null);
+
+        // MetaDefender URL reputation (only when multiscanning is enabled).
+        const mdUrlPromise = multiscanningEnabled
+          ? axios.get(`${API_URL}/scan-url-direct?encodedUrl=${encodedUrl}`, {
+              headers: {
+                apikey: MD_API_KEY,
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+              },
+            }).then(r => r.data)
+          : Promise.resolve(null);
+
+        const [mdData, agathaData] = await Promise.all([mdUrlPromise, agathaUrlPromise]);
+
+        // Build a single URL data object. When multiscanning is off we still
+        // need an `address` so the results page and history have something to
+        // key on.
+        const merged = {
+          ...(mdData || { address: scanSource.value }),
+          agatha: agathaData || null,
+        };
+        setUrlData(merged);
+
         setIsComplete(true);
         setScanStatus('success');
         setScanMessage('URL scan completed successfully!');
-        
-        // Auto-hide success message after 2 seconds
-        setTimeout(() => {
-          setScanStatus('idle');
-          setScanMessage('');
-        }, 2000);
-      } else if (scanSource.type === 'hash') {
-        setScanMessage('Looking up hash...');
-        const response = await axios.get(`${API_URL}/hash-lookup/${scanSource.value}`, {
-          headers: { 
-            apikey: MD_API_KEY,
-            Authorization: `Bearer ${localStorage.getItem('token')}` 
-          },
-        });
-        setData(response.data);
-        setIsComplete(true);
-        setScanStatus('success');
-        setScanMessage('Hash lookup completed successfully!');
-        
-        // Sandbox feature disabled — only multiscanning + Agatha are active.
-        // const sandboxId = response.data?.last_sandbox_id?.[0]?.sandbox_id;
-        // const sha1 = response.data?.file_info?.sha1;
-        //
-        // if (sandboxId && sha1) {
-        //   try {
-        //     const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
-        //       headers: {
-        //         apikey: MD_API_KEY,
-        //         Authorization: `Bearer ${localStorage.getItem('token')}`
-        //       }
-        //     });
-        //     setSandboxData(sandboxRes.data);
-        //     console.log("Sandbox Data:", sandboxRes.data);
-        //   } catch (err) {
-        //     console.error("Error fetching sandbox data:", err);
-        //   }
-        // }
 
         // Auto-hide success message after 2 seconds
         setTimeout(() => {

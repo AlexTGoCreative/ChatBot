@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 /* ============================================================
-   Ozzy design tokens — single source of truth for the palette.
+   Athena design tokens — single source of truth for the palette.
    Used across the nav, scan results, and Agatha settings so the
    whole app shares one cohesive security-console look.
    ============================================================ */

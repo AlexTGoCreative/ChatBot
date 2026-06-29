@@ -1,20 +1,15 @@
 import { useState } from "react";
 import "./UrlForm.css";
 
-const UrlForm = ({ onSubmit, isScanning, isChatbotOpen }) => {
+const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }) => {
   const [input, setInput] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("file");
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isScanning) {
-      if (activeTab === 'lookup') {
-        onSubmit(input.trim(), 'hash');
-      } else {
-        onSubmit(input.trim());
-      }
+      onSubmit(input.trim());
       setInput("");
     }
   };
@@ -33,10 +28,8 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen }) => {
         return 'Scan a file';
       case 'url':
         return 'Scan a URL';
-      case 'lookup':
-        return 'Enter MD5, SHA1, or SHA256 hash';
       default:
-        return 'File, URL, IP address, Domain, Hash, or CVE';
+        return 'File or URL';
     }
   };
 
@@ -45,9 +38,9 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen }) => {
       <div className={`form-wrapper ${isChatbotOpen ? 'chatbot-open' : ''}`}>
         <div className="hero">
           <p className="hero-sub">
-            Scan a file, URL, or file hash for malware. Every file is checked against
-            20+ anti-malware engines through MetaDefender multiscanning and the Agatha
-            AI detection engine for a fast, independent second opinion.{' '}
+            Scan a file or URL for malware. Files and URLs are checked against
+            20+ reputation sources through MetaDefender and the Agatha AI detection
+            engine for a fast, independent second opinion.{' '}
             <span className="learn-more-link" onClick={() => setShowModal(true)}>
               Learn more...
             </span>
@@ -59,24 +52,17 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen }) => {
             <div className="scan-buttons-group">
               <button
                 className={`scan-tab-button ${activeTab === 'file' ? 'active' : ''}`}
-                onClick={() => setActiveTab('file')}
+                onClick={() => onTabChange('file')}
               >
                 <span className="icon-placeholder">📄</span>
                 Scan a file
               </button>
               <button
                 className={`scan-tab-button ${activeTab === 'url' ? 'active' : ''}`}
-                onClick={() => setActiveTab('url')}
+                onClick={() => onTabChange('url')}
               >
                 <span className="icon-placeholder">🔗</span>
-                Search a URL
-              </button>
-              <button
-                className={`scan-tab-button ${activeTab === 'lookup' ? 'active' : ''}`}
-                onClick={() => setActiveTab('lookup')}
-              >
-                <span className="icon-placeholder">🔍</span>
-                Lookup
+                Scan a URL
               </button>
             </div>
           </div>
@@ -93,7 +79,6 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen }) => {
             <div className="trust-no-file-text">
               {activeTab === 'file' && 'Trust No File'}
               {activeTab === 'url' && 'Trust No URL'}
-              {activeTab === 'lookup' && 'Trust No Hash'}
             </div>
 
             <form className={`url-form ${isScanning ? 'scanning' : ''}`} onSubmit={handleSubmit}>
@@ -124,7 +109,6 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen }) => {
             <p className="scan-hint">
               {activeTab === 'file' && 'Drag & drop a file anywhere, or browse with the clip.'}
               {activeTab === 'url' && 'Paste a full URL including http:// or https://.'}
-              {activeTab === 'lookup' && 'Paste a known MD5, SHA-1, or SHA-256 hash.'}
             </p>
           </div>
         </div>
@@ -134,26 +118,28 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen }) => {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
-            <h2>About Ozzy</h2>
+            <h2>About Agatha</h2>
             <div className="modal-body">
               <p>
-                Ozzy is a malware analysis workspace that combines two detection layers and
+                Agatha is a malware analysis workspace that combines two detection layers and
                 an assistant to help you make sense of the results.
               </p>
               <p>
                 <strong>MetaDefender multiscanning</strong> checks every file against 20+ commercial
                 anti-malware engines in a single pass, so a threat missed by one vendor is caught
-                by another. URLs and file hashes are checked against the same reputation sources.
+                by another. URLs are checked separately through MetaDefender's URL reputation,
+                which aggregates multiple online reputation sources.
               </p>
               <p>
-                <strong>Agatha</strong> is an AI detection engine that classifies files as clean or
-                infected using ONNX machine-learning models. It runs alongside multiscanning to give
-                an independent, signature-free second opinion, and supports PE, ELF, Mach-O, PDF,
-                OOXML, and image file types. You can configure each file type independently — layers
-                and detection thresholds — in Agatha settings.
+                <strong>Agatha</strong> is an AI detection engine that uses ONNX machine-learning
+                models to give an independent, signature-free second opinion. For files it classifies
+                PE, ELF, Mach-O, PDF, OOXML, and image types as clean or infected (configurable per
+                file type in Agatha settings); for URLs a dedicated Hyperlink model scores the address
+                as clean, suspicious, or malicious — both running alongside MetaDefender for an
+                at-a-glance comparison.
               </p>
               <p>
-                The built-in <strong>Ozzy assistant</strong> can answer questions about a scan,
+                The built-in <strong>Agatha assistant</strong> can answer questions about a scan,
                 explain verdicts, and walk you through what a detection means.
               </p>
               <p className="modal-footer-text">

@@ -6,11 +6,29 @@ import LoadingOverlay from "./components/LoadingOverlay/LoadingOverlay";
 import ScanResults from "./components/ScanResults/ScanResults";
 import Navbar from "./components/Navbar/Navbar";
 import Settings, { DEFAULT_AGATHA_SETTINGS } from "./components/Settings/Settings";
+import LogsModal from "./components/LogsModal/LogsModal";
 import { useFileScan } from "./hooks/useFileScan";
 import Auth from "./components/Auth/Auth";
 
 const AGATHA_STORAGE_KEY = 'agatha_settings';
 const MULTISCANNING_STORAGE_KEY = 'multiscanning_enabled';
+
+// Normalise a persisted `preferences` value to the per-mode shape
+// `{ detection, deflection }`. Older builds stored a single FLAT dotted-key map
+// (top-level keys like `pe`/`pdf`/`image`); those were captured under the
+// detection profile, so we wrap them as detection and leave deflection unset
+// (null → use the deflection engine's defaults). null/undefined → both null.
+function migratePreferences(prefs) {
+  if (!prefs || typeof prefs !== 'object') {
+    return { detection: null, deflection: null };
+  }
+  // Already per-mode: keys are exactly/among detection|deflection.
+  if ('detection' in prefs || 'deflection' in prefs) {
+    return { detection: prefs.detection ?? null, deflection: prefs.deflection ?? null };
+  }
+  // Flat legacy map → treat as the detection profile's saved prefs.
+  return { detection: prefs, deflection: null };
+}
 
 export default function App() {
   const [scanSource, setScanSource] = useState({ type: null, value: null });
@@ -19,11 +37,16 @@ export default function App() {
   const [showResults, setShowResults] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  const [activeTab, setActiveTab] = useState('file');
   const [agathaSettings, setAgathaSettings] = useState(() => {
     const saved = localStorage.getItem(AGATHA_STORAGE_KEY);
     // Merge with defaults so settings persisted before new keys (e.g.
     // per-file-type preferences) were introduced still get sensible values.
-    return saved ? { ...DEFAULT_AGATHA_SETTINGS, ...JSON.parse(saved) } : DEFAULT_AGATHA_SETTINGS;
+    if (!saved) return DEFAULT_AGATHA_SETTINGS;
+    const parsed = { ...DEFAULT_AGATHA_SETTINGS, ...JSON.parse(saved) };
+    parsed.preferences = migratePreferences(parsed.preferences);
+    return parsed;
   });
   const [multiscanningEnabled, setMultiscanningEnabled] = useState(() => {
     const saved = localStorage.getItem(MULTISCANNING_STORAGE_KEY);
@@ -47,9 +70,7 @@ export default function App() {
 
 
   const handleFormSubmit = (input, type) => {
-    if (type === 'hash') {
-      setScanSource({ type: "hash", value: input.trim() });
-    } else if (typeof input === 'string') {
+    if (typeof input === 'string') {
       setScanSource({ type: "url", value: input.trim() });
     } else if (input instanceof File) {
       setScanSource({ type: "file", value: input });
@@ -74,12 +95,18 @@ export default function App() {
     setScanSource({ type: null, value: null });
     setShowResults(false);
     setShowSettings(false);
+    setShowLogs(false);
   };
 
   const handleNewScan = () => {
     setScanSource({ type: null, value: null });
     setShowResults(false);
+    setShowLogs(false);
   };
+
+  // Engine diagnostics for the current scan. The file engine returns them as
+  // `engine_logs`; the URL engine nests its result under `urlData.agatha`.
+  const engineLogs = agathaResult?.engine_logs || UrlData?.agatha?.engine_logs || '';
 
   const handleChatbotToggle = (isOpen) => {
     setShowChatbot(isOpen);
@@ -113,69 +140,81 @@ export default function App() {
     />
   );
 
-  // Show scan results if available
-  if (showResults) {
-    return (
-      <div className="app-container">
-        <Navbar
-          username={user?.username}
-          onOpenSettings={() => setShowSettings(true)}
-          onLogout={handleLogout}
-        />
-        <ScanResults
-          scanData={data}
-          urlData={UrlData}
-          agathaResult={agathaResult}
-          multiscanningEnabled={multiscanningEnabled}
-          scanFile={scanSource?.type === 'file' ? scanSource.value : null}
-          scanType={scanType}
-          onNewScan={handleNewScan}
-          user={user}
-        />
-        {settingsModal}
-      </div>
-    );
-  }
+  const logsModal = showLogs && (
+    <LogsModal logs={engineLogs} onClose={() => setShowLogs(false)} />
+  );
+
+  // A single ChatBot instance lives at the app-container level so its
+  // conversation, loaded scan data, and history selection survive navigation
+  // between the main page and the scan-results page. Rendering a separate
+  // ChatBot inside each view (as before) unmounted it on every page switch,
+  // wiping the in-progress conversation.
+  const chatbot = (
+    <ChatBot
+      Data={{
+        ScanningData: data,
+        UrlScanData: UrlData,
+        AgathaData: agathaResult,
+      }}
+      user={user}
+      onToggle={handleChatbotToggle}
+    />
+  );
 
   return (
     <div className="app-container">
       <Navbar
         username={user?.username}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenLogs={showResults ? () => setShowLogs(true) : undefined}
         onLogout={handleLogout}
+        scanMode={showResults ? scanType : activeTab}
       />
-      <div className="app-content">
-        <UrlForm
-          onSubmit={handleFormSubmit}
-          isScanning={scanStatus === 'scanning'}
-          isChatbotOpen={showChatbot}
-        />
-        <ChatBot
-          Data={{
-            ScanningData: data,
-            UrlScanData: UrlData
-          }}
+
+      {showResults ? (
+        <ScanResults
+          scanData={data}
+          urlData={UrlData}
+          agathaResult={agathaResult}
+          agathaMode={agathaSettings?.mode || 'detection'}
+          multiscanningEnabled={multiscanningEnabled}
+          scanFile={scanSource?.type === 'file' ? scanSource.value : null}
+          scanType={scanType}
+          onNewScan={handleNewScan}
           user={user}
-          onToggle={handleChatbotToggle}
         />
-        <FileDropZone
-          onFileDrop={handleFileDrop}
-          isScanning={scanStatus === 'scanning'}
-          isChatbotOpen={showChatbot}
-        />
-      </div>
+      ) : (
+        <>
+          <div className="app-content">
+            <UrlForm
+              onSubmit={handleFormSubmit}
+              isScanning={scanStatus === 'scanning'}
+              isChatbotOpen={showChatbot}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+            <FileDropZone
+              onFileDrop={handleFileDrop}
+              isScanning={scanStatus === 'scanning'}
+              isChatbotOpen={showChatbot}
+            />
+          </div>
 
-      <LoadingOverlay
-        isVisible={scanStatus !== 'idle'}
-        status={scanStatus}
-        progress={scanProgress}
-        message={scanMessage}
-        onRetry={retryScan}
-        onClose={dismissScan}
-        scanType={scanType}
-      />
+          <LoadingOverlay
+            isVisible={scanStatus !== 'idle'}
+            status={scanStatus}
+            progress={scanProgress}
+            message={scanMessage}
+            onRetry={retryScan}
+            onClose={dismissScan}
+            scanType={scanType}
+          />
+        </>
+      )}
 
+      {chatbot}
       {settingsModal}
+      {logsModal}
     </div>
   );
 }

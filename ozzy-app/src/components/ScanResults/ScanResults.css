@@ -25,12 +25,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1.25rem;
 }
 
 .file-header {
   display: flex;
   align-items: center;
   gap: 1rem;
+  /* Allow the file block to shrink so a long file name wraps/ellipsizes
+     instead of pushing into the action buttons. */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .file-icon {
@@ -47,8 +52,14 @@
 .file-extension {
   color: white;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   letter-spacing: 0.02em;
+  max-width: 44px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+  text-align: center;
+  line-height: 1;
 }
 
 .file-details h1 {
@@ -92,6 +103,9 @@
 .header-actions {
   display: flex;
   gap: 0.75rem;
+  /* Keep the Export / New Scan buttons at their natural size and never let a
+     long file name overlap or compress them. */
+  flex-shrink: 0;
 }
 
 .new-scan-btn, .export-btn {
@@ -105,6 +119,7 @@
   font-size: 0.85rem;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
   font-family: "Inter", sans-serif;
+  white-space: nowrap;
 }
 
 .export-btn {
@@ -212,6 +227,63 @@
 
 .status-neutral {
   color: var(--text-muted);
+}
+
+/* Deflection "Uncertain — forward to multiscanning" verdict: amber/neutral,
+   distinct from the red threat card and green clean card. Never red, never
+   "blocked". */
+.status-uncertain {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.status-card.uncertain {
+  border-color: rgba(247, 185, 85, 0.35);
+  background:
+    linear-gradient(160deg, var(--warn-soft), rgba(247, 185, 85, 0) 60%),
+    var(--surface-1);
+}
+
+.status-card.uncertain:hover {
+  border-color: rgba(247, 185, 85, 0.55);
+}
+
+/* Mode badge ("Mode: Detection" / "Mode: Deflection") on the Agatha card */
+.status-card-titlerow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.status-card-titlerow h3 {
+  margin: 0;
+}
+
+.mode-badge {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.mode-badge.mode-detection {
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border-color: rgba(29, 107, 252, 0.3);
+}
+
+.mode-badge.mode-deflection {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: rgba(247, 185, 85, 0.3);
 }
 
 /* Main Content Layout */
@@ -1352,6 +1424,10 @@
   background: linear-gradient(180deg, var(--danger), rgba(255, 107, 120, 0.4));
 }
 
+.status-card.agatha.uncertain::before {
+  background: linear-gradient(180deg, var(--warn), rgba(247, 185, 85, 0.4));
+}
+
 .agatha-probability {
   font-size: 0.7rem;
   color: var(--text-muted);
@@ -1390,4 +1466,68 @@
   font-size: 0.65rem;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+/* ── Extracted links (PDF/OOXML deepscan URL scoring) ───────────────────────── */
+.agatha-links-section {
+  margin: 1.25rem 0;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 1.1rem 1.4rem 1.2rem;
+}
+
+.agatha-links-sub {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  margin-top: 0.15rem;
+}
+
+.agatha-links-list {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agatha-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.agatha-link-badge {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+
+.agatha-link-badge.verdict-clean { background: rgba(52, 211, 153, 0.15); color: #34d399; }
+.agatha-link-badge.verdict-malicious { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+.agatha-link-badge.verdict-unknown { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+
+.agatha-link-url {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.82rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agatha-link-score {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-faint);
 }

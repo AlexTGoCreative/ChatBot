@@ -30,8 +30,8 @@ const Login = ({ onLogin }) => {
       <div className="login-box">
         <div className="login-header">
           <img 
-            src="https://static.opswat.com/assets/images/ozzy.gif"
-            alt="Ozzy"
+            src="/agatha-icon.png"
+            alt="Agatha"
             className="login-logo"
           />
           <h2>Welcome Back!</h2>

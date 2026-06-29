@@ -201,6 +201,52 @@
   color: var(--text-muted);
 }
 
+/* Segmented control (Detection | Deflection operating mode) */
+.settings-segmented {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+  padding: 0.25rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.settings-segmented-btn {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.settings-segmented-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.settings-segmented-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.settings-segmented-btn:disabled:hover {
+  color: inherit;
+  background: transparent;
+}
+
+.settings-segmented-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 12px -2px var(--accent-ring);
+}
+
 /* Per–file-type cards */
 .settings-typecards {
   display: flex;

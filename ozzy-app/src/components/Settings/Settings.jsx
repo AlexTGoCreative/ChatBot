@@ -5,11 +5,19 @@ import './Settings.css';
 const API_URL = import.meta.env.VITE_API2_URL;
 
 export const DEFAULT_AGATHA_SETTINGS = {
-  enabled: false,
-  // Flat dotted-key preferences map sent verbatim to the engine's `process`
-  // endpoint (e.g. { "pe": true, "pe.ml_enabled": true, "pe.threshold": 80 }).
-  // null means "let the engine use its profile defaults".
-  preferences: null,
+  enabled: true,
+  // Operating mode that governs Agatha's verdict regime:
+  //   'detection'  — binary verdict (Clean / Infected), tuned for low false-positives.
+  //   'deflection' — ternary verdict (Clean / Unknown / Infected), tuned for low
+  //                  false-negatives; the Unknown band forwards to a heavier
+  //                  multiscanning platform (Agatha acts as a fast pre-filter).
+  mode: 'detection',
+  // Per-mode preferences. Each value is a flat dotted-key map sent verbatim to
+  // the engine's `process` endpoint (e.g. { "pe": true, "pe.ml_enabled": true,
+  // "pe.threshold": 80 }), or null to "let that mode's engine use its profile
+  // defaults". The maps are kept SEPARATE per mode because the engine's threshold
+  // defaults differ between the detection and deflection profiles.
+  preferences: { detection: null, deflection: null },
 };
 
 // The two analysis-layer toggles that the "at least one layer" rule applies to.
@@ -21,23 +29,56 @@ export default function Settings({ agathaSettings, multiscanningEnabled, onSave,
   const [agatha, setAgatha] = useState({ ...DEFAULT_AGATHA_SETTINGS, ...(agathaSettings || {}) });
 
   // Schema fetched from the engine (one feature group per file-type family) plus
-  // the current flat values map the user is editing.
+  // the current flat values map the user is editing for the ACTIVE mode.
   const [schema, setSchema] = useState([]);
   const [values, setValues] = useState({});
+  // Per-mode edited preference slices, captured as the user edits/switches modes.
+  // null for a mode means "untouched this session" — its saved prefs (or engine
+  // defaults) are preserved on save. Seeded from the saved per-mode prefs.
+  const [prefsDraft, setPrefsDraft] = useState(() => ({
+    detection: agathaSettings?.preferences?.detection ?? null,
+    deflection: agathaSettings?.preferences?.deflection ?? null,
+  }));
   // idle | loading | ready | unavailable | error
   const [loadState, setLoadState] = useState('idle');
+  // Whether the running engine build ships the deflection (ternary) model.
+  // Defaults to true so the option stays available unless the engine says no.
+  const [deflectionAvailable, setDeflectionAvailable] = useState(true);
 
-  // Fetch the engine's workflow schema once when the panel mounts. Seed values
-  // from the engine defaults, then overlay any previously-saved preferences so
-  // new keys still get sensible defaults.
+  // Best-effort: ask the engine whether the deflection model is available in
+  // this build. If the call fails we leave the option enabled (default true).
+  // Runs once on mount.
   useEffect(() => {
     let cancelled = false;
+    const authHeaders = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+    (async () => {
+      try {
+        const cfg = await axios.get(`${API_URL}/agatha-config`, authHeaders);
+        if (!cancelled && cfg.data?.deflection_available === false) {
+          setDeflectionAvailable(false);
+          // Don't leave the user pinned to an unavailable mode.
+          setAgatha((a) => (a.mode === 'deflection' ? { ...a, mode: 'detection' } : a));
+        }
+      } catch (e) {
+        // Ignore — keep deflection available by default.
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch the engine's workflow schema for the ACTIVE mode, RE-FETCHING whenever
+  // the mode changes — the threshold defaults differ per mode. Seed the editable
+  // `values` from this mode's engine defaults, overlaid with this mode's edited
+  // draft (or its saved prefs) so the controls reflect the selected mode.
+  useEffect(() => {
+    let cancelled = false;
+    const mode = agatha.mode || 'detection';
+    const authHeaders = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
     (async () => {
       setLoadState('loading');
       try {
-        const res = await axios.get(`${API_URL}/agatha-workflow-info`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        });
+        const res = await axios.get(`${API_URL}/agatha-workflow-info?mode=${mode}`, authHeaders);
         if (cancelled) return;
         if (!res.data?.available) {
           setLoadState('unavailable');
@@ -45,8 +86,11 @@ export default function Settings({ agathaSettings, multiscanningEnabled, onSave,
         }
         const groups = res.data.schema?.schema || [];
         const defaults = res.data.default_values || {};
+        // Prefer this session's edited draft for the mode; fall back to the saved
+        // per-mode prefs. Either is overlaid on the engine defaults.
+        const overlay = prefsDraft[mode] ?? agathaSettings?.preferences?.[mode] ?? null;
         setSchema(groups);
-        setValues({ ...defaults, ...(agatha.preferences || {}) });
+        setValues({ ...defaults, ...(overlay || {}) });
         setLoadState('ready');
       } catch (e) {
         if (!cancelled) setLoadState('error');
@@ -54,14 +98,39 @@ export default function Settings({ agathaSettings, multiscanningEnabled, onSave,
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [agatha.mode]);
 
   const setValue = (key, val) => setValues((v) => ({ ...v, [key]: val }));
 
+  // Switch the editing target to another mode. Commit the active mode's current
+  // edits into its draft slice first (so they aren't lost), then flip the mode —
+  // the schema effect re-fetches and re-seeds `values` from the new mode.
+  const switchMode = (nextMode) => {
+    if (nextMode === agatha.mode) return;
+    if (loadState === 'ready') {
+      const current = agatha.mode || 'detection';
+      setPrefsDraft((d) => ({ ...d, [current]: values }));
+    }
+    setAgatha((a) => ({ ...a, mode: nextMode }));
+  };
+
   const handleSave = () => {
-    // Only persist the schema-derived values once they've loaded; otherwise keep
-    // whatever was saved before so we never overwrite good prefs with an empty map.
-    const preferences = loadState === 'ready' ? values : agatha.preferences;
+    const activeMode = agatha.mode || 'detection';
+    // Fold the active mode's live edits into the per-mode draft. The non-active
+    // mode keeps whatever it had (its own edits this session, or null → saved
+    // prefs / engine defaults preserved below).
+    const draft = { ...prefsDraft };
+    if (loadState === 'ready') draft[activeMode] = values;
+
+    // Build the persisted per-mode preferences. For each mode use this session's
+    // draft if it was touched; otherwise preserve the previously-saved slice
+    // (null = use that mode's engine defaults). Never overwrite the untouched
+    // mode's good prefs.
+    const prevPrefs = agathaSettings?.preferences || {};
+    const preferences = {
+      detection: draft.detection ?? prevPrefs.detection ?? null,
+      deflection: draft.deflection ?? prevPrefs.deflection ?? null,
+    };
     onSave({ multiscanningEnabled: multi, agathaSettings: { ...agatha, preferences } });
     onClose();
   };
@@ -180,7 +249,7 @@ export default function Settings({ agathaSettings, multiscanningEnabled, onSave,
           <section className="settings-section">
             <h3 className="settings-section-title">Scanning Engines</h3>
             <p className="settings-section-hint">
-              Choose which detection layers run when you scan a file.
+              Choose which detection layers run when you scan a file or URL.
             </p>
 
             <div className="settings-toggle-row">
@@ -201,7 +270,7 @@ export default function Settings({ agathaSettings, multiscanningEnabled, onSave,
                 <span className="settings-label">Agatha AI Engine</span>
                 <span className="settings-desc">
                   Run the Agatha ONNX detection engine alongside multiscanning for a fast,
-                  signature-free second opinion.
+                  signature-free second opinion — file classification plus a dedicated URL model.
                 </span>
               </div>
               <label className="settings-switch">
@@ -216,10 +285,45 @@ export default function Settings({ agathaSettings, multiscanningEnabled, onSave,
 
             {agatha.enabled && (
               <div className="settings-subgroup">
-                <span className="settings-label">Per–File-Type Detection</span>
+                <span className="settings-label">Operating Mode</span>
                 <span className="settings-desc">
-                  Configure each file family independently: enable or disable it, pick which
-                  analysis layers run, and set how confident Agatha must be before flagging a file.
+                  <strong>Detection</strong> returns a binary verdict (Clean / Infected) tuned for
+                  few false positives. <strong>Deflection</strong> adds an Unknown band that is
+                  forwarded to multiscanning, tuned for few false negatives — Agatha acts as a fast
+                  pre-filter.
+                </span>
+                <div className="settings-segmented" role="group" aria-label="Agatha operating mode">
+                  <button
+                    type="button"
+                    className={`settings-segmented-btn ${agatha.mode === 'detection' ? 'active' : ''}`}
+                    aria-pressed={agatha.mode === 'detection'}
+                    onClick={() => switchMode('detection')}
+                  >
+                    Detection
+                  </button>
+                  <button
+                    type="button"
+                    className={`settings-segmented-btn ${agatha.mode === 'deflection' ? 'active' : ''}`}
+                    aria-pressed={agatha.mode === 'deflection'}
+                    disabled={!deflectionAvailable}
+                    onClick={() => switchMode('deflection')}
+                  >
+                    Deflection
+                  </button>
+                </div>
+                {!deflectionAvailable && (
+                  <span className="settings-field-info">Deflection requires a deflection build.</span>
+                )}
+              </div>
+            )}
+
+            {agatha.enabled && (
+              <div className="settings-subgroup">
+                <span className="settings-label">Scan Layer Configuration</span>
+                <span className="settings-desc">
+                  Control Agatha's detection layers: enable or disable the signatures layer (hash
+                  database, byte-pattern matching, IOC reputation) and configure each file family
+                  independently — toggle analysis layers and set the confidence threshold.
                 </span>
 
                 {loadState === 'loading' && (

@@ -37,8 +37,8 @@ const Register = ({ onRegister }) => {
       <div className="login-box">
         <div className="login-header">
           <img 
-            src="https://static.opswat.com/assets/images/ozzy.gif"
-            alt="Ozzy"
+            src="/agatha-icon.png"
+            alt="Athena"
             className="login-logo"
           />
           <h2>Create Account</h2>
