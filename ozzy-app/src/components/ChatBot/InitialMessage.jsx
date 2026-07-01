@@ -12,7 +12,7 @@ const InitialMessage = () => {
       <div className="message-content">
         <h3 className="message-title">Hey there!</h3>
         <p className="message-text">
-          I'm Athena, your AI security assistant. Ask me about your scan results, what a verdict means, or anything about MetaDefender and the Agatha engine.
+          I'm Athena, the Triple A security assistant. Ask me about your scan results, what a verdict means, or how Agatha and Aegis work.
         </p>
       </div>
     </div>

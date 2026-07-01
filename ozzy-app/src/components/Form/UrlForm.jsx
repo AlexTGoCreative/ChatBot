@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import "./UrlForm.css";
 
 const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }) => {
@@ -38,9 +38,7 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }
       <div className={`form-wrapper ${isChatbotOpen ? 'chatbot-open' : ''}`}>
         <div className="hero">
           <p className="hero-sub">
-            Scan a file or URL for malware. Files and URLs are checked against
-            20+ reputation sources through MetaDefender and the Agatha AI detection
-            engine for a fast, independent second opinion.{' '}
+            Triple A is a security analysis platform built around three engines: AGATHA for file classification, Aegis for URL classification, and Athena for explaining results — all running alongside MetaDefender for a side-by-side comparison.{' '}
             <span className="learn-more-link" onClick={() => setShowModal(true)}>
               Learn more...
             </span>
@@ -118,29 +116,34 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
-            <h2>About Agatha</h2>
+            <h2>About Triple A — Agatha, Aegis & Athena</h2>
             <div className="modal-body">
               <p>
-                Agatha is a malware analysis workspace that combines two detection layers and
-                an assistant to help you make sense of the results.
+                Triple A is a security analysis platform built around three engines:
+                AGATHA for file classification, Aegis for URL classification, and Athena
+                for explaining results — all running alongside MetaDefender for a
+                side-by-side comparison.
               </p>
               <p>
-                <strong>MetaDefender multiscanning</strong> checks every file against 20+ commercial
-                anti-malware engines in a single pass, so a threat missed by one vendor is caught
-                by another. URLs are checked separately through MetaDefender's URL reputation,
-                which aggregates multiple online reputation sources.
+                <strong>Agatha</strong> is a multi-layer file detection engine that runs
+                locally on-device. It combines deterministic signature layers (hash database,
+                byte-pattern and fuzzy matching, IOC reputation) with structural parsing,
+                YARA rules, and XGBoost machine-learning models — one per file family
+                (PE, ELF, Mach-O, PDF, OOXML, Image). The verdict is compared side-by-side
+                against MetaDefender's 21 commercial anti-malware engines.
               </p>
               <p>
-                <strong>Agatha</strong> is an AI detection engine that uses ONNX machine-learning
-                models to give an independent, signature-free second opinion. For files it classifies
-                PE, ELF, Mach-O, PDF, OOXML, and image types as clean or infected (configurable per
-                file type in Agatha settings); for URLs a dedicated Hyperlink model scores the address
-                as clean, suspicious, or malicious — both running alongside MetaDefender for an
-                at-a-glance comparison.
+                <strong>Aegis</strong> is a dedicated URL classification engine. It extracts
+                over 100 lexical features from the URL itself — no page visit required — and
+                runs a local XGBoost classifier to produce a clean / suspicious / malicious
+                verdict. The result is shown alongside MetaDefender's URL reputation check
+                (aggregated from sources such as Webroot) for direct comparison.
               </p>
               <p>
-                The built-in <strong>Agatha assistant</strong> can answer questions about a scan,
-                explain verdicts, and walk you through what a detection means.
+                <strong>Athena</strong> is a conversational AI assistant built on a
+                Retrieval-Augmented Generation (RAG) architecture. It answers questions
+                about a scan, explains what a verdict means, and walks you through the
+                detection evidence — grounded in the actual scan context and documentation.
               </p>
               <p className="modal-footer-text">
                 <strong>Your scan and chat history are saved to your account.</strong>
