@@ -4,51 +4,57 @@
 @tailwind utilities;
 
 /* ============================================================
-   Athena design tokens — single source of truth for the palette.
-   Used across the nav, scan results, and Agatha settings so the
-   whole app shares one cohesive security-console look.
+   Radar Cyan (light) design tokens — single source of truth for
+   the palette. Used across the nav, scan results, and Agatha
+   settings so the whole app shares one cohesive, bright console
+   look. Accent/status colors are deliberately darker than the old
+   dark-theme values — they now do double duty as both fills and
+   plain text on a white page, so they're tuned to clear WCAG AA
+   (4.5:1) as text, not just to look vivid.
    ============================================================ */
 :root {
-  /* Base surfaces — aligned to the MetaDefender Cloud palette
-     (app bg #0C121D, cards #141B27) for a cohesive enterprise look. */
-  --bg: #0c121d;
-  --bg-2: #0e1626;
-  --surface-1: #141b27;
-  --surface-2: #1a2333;
-  --surface-3: #243149;
+  /* Base surfaces — white page, paper-white cards */
+  --bg: #f7fafb;
+  --bg-2: #eef3f4;
+  --surface-1: #ffffff;
+  --surface-2: #f2f6f7;
+  --surface-3: #e6edee;
 
-  /* Borders / hairlines (subtle blue-grey, matches MetaDefender card edges) */
-  --border: rgba(148, 163, 196, 0.16);
-  --border-strong: rgba(148, 163, 196, 0.30);
+  /* Borders / hairlines (cool dark-teal at low alpha) */
+  --border: rgba(15, 50, 55, 0.14);
+  --border-strong: rgba(15, 50, 55, 0.26);
 
   /* Text */
-  --text: #f8f9f9;
-  --text-muted: #c7ccd5;
-  --text-faint: #6f7d99;
+  --text: #0f2024;
+  --text-muted: #45646a;
+  --text-faint: #6f8b90;
 
-  /* Brand accent (MetaDefender vivid blue #1D6BFC) */
-  --accent: #1d6bfc;
-  --accent-hover: #4a8bff;
-  --accent-strong: #1559d6;
-  --accent-soft: rgba(29, 107, 252, 0.14);
-  --accent-ring: rgba(29, 107, 252, 0.40);
+  /* Brand accent — deep cyan-teal. Note accent-hover is DARKER than
+     accent (not lighter, as in the old dark theme) since both are
+     used as plain link/label text on white and must independently
+     clear AA contrast. */
+  --accent: #086f8a;
+  --accent-hover: #045a71;
+  --accent-strong: #033c4c;
+  --accent-soft: rgba(8, 111, 138, 0.10);
+  --accent-ring: rgba(8, 111, 138, 0.35);
 
   /* Status colors */
-  --safe: #2fe0b0;
-  --safe-soft: rgba(47, 224, 176, 0.12);
-  --danger: #ff6e75;
-  --danger-soft: rgba(255, 110, 117, 0.12);
-  --warn: #f7b955;
-  --warn-soft: rgba(247, 185, 85, 0.12);
+  --safe: #087a48;
+  --safe-soft: rgba(8, 122, 72, 0.10);
+  --danger: #c81e3a;
+  --danger-soft: rgba(200, 30, 58, 0.10);
+  --warn: #a15c00;
+  --warn-soft: rgba(161, 92, 0, 0.10);
 
   /* Radii & elevation — small radius for the sharp, enterprise feel */
   --r-sm: 4px;
   --r-md: 6px;
   --r-lg: 8px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 24px -14px rgba(0, 0, 0, 0.7);
-  --shadow-lg: 0 24px 60px -24px rgba(0, 0, 0, 0.8);
-  --shadow-accent: 0 8px 28px -12px rgba(29, 107, 252, 0.45);
+  --shadow-sm: 0 1px 2px rgba(15, 40, 45, 0.08);
+  --shadow-md: 0 8px 24px -14px rgba(15, 40, 45, 0.16);
+  --shadow-lg: 0 24px 60px -24px rgba(15, 40, 45, 0.20);
+  --shadow-accent: 0 8px 28px -12px rgba(8, 111, 138, 0.35);
 }
 
 * {
@@ -63,7 +69,7 @@ body {
   min-height: 100vh;
   color: var(--text);
   background:
-    radial-gradient(1200px 700px at 82% -12%, rgba(29, 107, 252, 0.08), transparent 62%),
+    radial-gradient(1200px 700px at 82% -12%, rgba(8, 111, 138, 0.06), transparent 62%),
     var(--bg);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;

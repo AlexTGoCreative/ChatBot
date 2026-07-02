@@ -1,0 +1,53 @@
+- generic [ref=f3e3]:
+  - banner [ref=f3e4]:
+    - generic [ref=f3e5]:
+      - generic [ref=f3e6]:
+        - img [ref=f3e7]
+        - generic [ref=f3e8]: Agatha
+      - navigation [ref=f3e9]:
+        - button "Settings" [ref=f3e10] [cursor=pointer]
+        - button "Logout" [ref=f3e11] [cursor=pointer]
+  - generic [ref=f3e12]:
+    - generic:
+      - generic:
+        - paragraph: "Triple A is a security analysis platform built around three engines: AGATHA for file classification, Aegis for URL classification, and Athena for explaining results — all running alongside MetaDefender for a side-by-side comparison. Learn more..."
+      - generic:
+        - generic:
+          - generic:
+            - button "📄 Scan a file":
+              - generic: 📄
+              - text: Scan a file
+            - button "🔗 Scan a URL":
+              - generic: 🔗
+              - text: Scan a URL
+        - generic:
+          - generic:
+            - img
+          - generic: Scan First. Trust Nothing.
+          - generic:
+            - generic:
+              - textbox "Scan a file"
+              - generic:
+                - generic: attach_file
+            - button "Process"
+          - paragraph: Drag & drop a file anywhere, or browse with the clip.
+  - generic:
+    - button "mode_comment close" [active] [ref=f3e37] [cursor=pointer]:
+      - generic [ref=f3e38]: mode_comment
+      - generic [ref=f3e39]: close
+    - generic [ref=f3e77]:
+      - generic [ref=f3e79]:
+        - generic [ref=f3e80]:
+          - img "Athena Chatbot" [ref=f3e81] [cursor=pointer]
+          - heading "Athena" [level=2] [ref=f3e82]
+        - generic [ref=f3e83]:
+          - button "history" [ref=f3e84] [cursor=pointer]
+          - button [disabled] [ref=f3e85]:
+            - img [ref=f3e86]
+          - button "close" [ref=f3e88] [cursor=pointer]
+      - generic [ref=f3e90]:
+        - img "Athena" [ref=f3e91]
+        - generic [ref=f3e92]:
+          - heading "Hey there!" [level=3] [ref=f3e93]
+          - paragraph [ref=f3e94]: I'm Athena, the Triple A security assistant. Ask me about your scan results, what a verdict means, or how Agatha and Aegis work.
+      - textbox "Message..." [ref=f3e97]

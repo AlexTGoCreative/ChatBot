@@ -27,7 +27,7 @@
 #chatbot-toggler.has-hover:hover {
   background: var(--accent-hover);
   transform: scale(1.06);
-  box-shadow: 0 10px 32px -10px rgba(29, 107, 252, 0.65);
+  box-shadow: 0 10px 32px -10px rgba(8, 111, 138, 0.65);
 }
 
 .container.show-chatbot #chatbot-toggler {
@@ -67,7 +67,7 @@
   /* Dark surface with a faint accent glow in the top-right — mirrors the
      app body background so the popup reads as part of the console. */
   background:
-    radial-gradient(420px 280px at 88% -8%, rgba(29, 107, 252, 0.10), transparent 60%),
+    radial-gradient(420px 280px at 88% -8%, rgba(8, 111, 138, 0.10), transparent 60%),
     linear-gradient(180deg, var(--surface-1), var(--bg-2));
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -268,7 +268,7 @@
 .chat-body .message.error .message-text {
   color: var(--danger);
   background: var(--danger-soft);
-  border: 1px solid rgba(255, 110, 117, 0.3);
+  border: 1px solid rgba(200, 30, 58, 0.3);
   border-radius: var(--r-md);
 }
 
@@ -435,7 +435,7 @@
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent-hover);
-  border: 1px solid rgba(29, 107, 252, 0.3);
+  border: 1px solid rgba(8, 111, 138, 0.3);
 }
 
 /* Scrollable list region between the header and the pinned footer. */
@@ -504,7 +504,7 @@
 
 .scan-history-table tr.scan-history-entry:hover,
 .chat-history-table tr.chat-history-entry:hover {
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(15, 50, 55, 0.04);
 }
 
 .scan-history-dropdown .scan-history-table td:nth-child(1),
@@ -590,7 +590,7 @@
 .history-pill.pill-red {
   background: var(--danger-soft);
   color: var(--danger);
-  border-color: rgba(255, 110, 117, 0.32);
+  border-color: rgba(200, 30, 58, 0.32);
 }
 
 .history-pill.pill-default {
@@ -629,7 +629,7 @@
 .history-btn-clear:hover {
   background: var(--danger-soft);
   color: var(--danger);
-  border-color: rgba(255, 110, 117, 0.35);
+  border-color: rgba(200, 30, 58, 0.35);
 }
 
 .history-confirm {
@@ -664,8 +664,8 @@
 }
 
 .history-btn-danger:hover {
-  background: #ff8088;
-  border-color: #ff8088;
+  background: #a3172d;
+  border-color: #a3172d;
 }
 
 .header-buttons .material-symbols-rounded {
@@ -750,7 +750,7 @@
     border-radius: 0;
     transform-origin: center;
     background:
-      radial-gradient(800px 500px at 88% -8%, rgba(29, 107, 252, 0.10), transparent 60%),
+      radial-gradient(800px 500px at 88% -8%, rgba(8, 111, 138, 0.10), transparent 60%),
       linear-gradient(180deg, var(--surface-1), var(--bg-2));
     background-attachment: fixed;
   }

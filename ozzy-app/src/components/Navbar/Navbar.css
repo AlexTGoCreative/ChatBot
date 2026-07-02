@@ -4,7 +4,7 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: linear-gradient(180deg, rgba(20, 27, 39, 0.92), rgba(14, 18, 30, 0.85));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.90), rgba(238, 243, 244, 0.80));
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   border-bottom: 1px solid var(--border);
@@ -68,7 +68,7 @@
   color: var(--text);
 }
 
-/* Filled blue CTA button (MetaDefender "Sign In" style) */
+/* Filled accent CTA button ("Sign In" style) */
 .ozzy-nav-cta {
   background: var(--accent);
   color: #fff;

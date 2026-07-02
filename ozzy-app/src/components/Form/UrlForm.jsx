@@ -74,9 +74,8 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }
                 <path d="M9 13l2 2 4-4" />
               </svg>
             </div>
-            <div className="trust-no-file-text">
-              {activeTab === 'file' && 'Trust No File'}
-              {activeTab === 'url' && 'Trust No URL'}
+            <div className="scan-tagline">
+              Scan First. Trust Nothing.
             </div>
 
             <form className={`url-form ${isScanning ? 'scanning' : ''}`} onSubmit={handleSubmit}>

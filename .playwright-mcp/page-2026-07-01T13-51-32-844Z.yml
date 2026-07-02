@@ -1,0 +1,88 @@
+- generic [ref=f5e3]:
+  - banner [ref=f5e4]:
+    - generic [ref=f5e5]:
+      - generic [ref=f5e6]:
+        - img [ref=f5e7]
+        - generic [ref=f5e8]: Agatha
+      - navigation [ref=f5e9]:
+        - button "Settings" [active] [ref=f5e10] [cursor=pointer]
+        - button "Logout" [ref=f5e11] [cursor=pointer]
+  - generic [ref=f5e13]:
+    - paragraph [ref=f5e15]: "Triple A is a security analysis platform built around three engines: AGATHA for file classification, Aegis for URL classification, and Athena for explaining results — all running alongside MetaDefender for a side-by-side comparison. Learn more..."
+    - generic [ref=f5e16]:
+      - generic [ref=f5e18]:
+        - button "📄 Scan a file" [ref=f5e19] [cursor=pointer]:
+          - generic [ref=f5e20]: 📄
+          - text: Scan a file
+        - button "🔗 Scan a URL" [ref=f5e21] [cursor=pointer]:
+          - generic [ref=f5e22]: 🔗
+          - text: Scan a URL
+      - generic [ref=f5e23]:
+        - img [ref=f5e25]
+        - generic [ref=f5e29]: Scan First. Trust Nothing.
+        - generic [ref=f5e30]:
+          - generic [ref=f5e31]:
+            - textbox "Scan a file" [ref=f5e32]
+            - generic [ref=f5e34] [cursor=pointer]: attach_file
+          - button "Process" [ref=f5e35] [cursor=pointer]
+        - paragraph [ref=f5e36]: Drag & drop a file anywhere, or browse with the clip.
+  - generic:
+    - button "mode_comment close" [ref=f5e37] [cursor=pointer]:
+      - generic [ref=f5e38]: mode_comment
+      - generic [ref=f5e39]: close
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - img "Athena Chatbot"
+            - heading "Athena" [level=2]
+          - generic:
+            - button "history"
+            - button [disabled]:
+              - img
+            - button "close"
+      - generic:
+        - generic:
+          - img "Athena"
+          - generic:
+            - heading "Hey there!" [level=3]
+            - paragraph: I'm Athena, the Triple A security assistant. Ask me about your scan results, what a verdict means, or how Agatha and Aegis work.
+      - generic:
+        - generic:
+          - textbox "Message..."
+  - generic [ref=f5e41]:
+    - generic [ref=f5e42]:
+      - heading "Settings" [level=2] [ref=f5e44]
+      - button "Close settings" [ref=f5e45] [cursor=pointer]: ✕
+    - generic [ref=f5e47]:
+      - heading "Scanning Engines" [level=3] [ref=f5e48]
+      - paragraph [ref=f5e49]: Choose which detection layers run when you scan a file or URL.
+      - generic [ref=f5e50]:
+        - generic [ref=f5e51]:
+          - generic [ref=f5e52]: MetaDefender Multiscanning
+          - generic [ref=f5e53]: Check every file against 20+ commercial anti-malware engines in a single pass.
+        - generic [ref=f5e54]:
+          - checkbox [checked]
+      - generic [ref=f5e56]:
+        - generic [ref=f5e57]:
+          - generic [ref=f5e58]: Agatha AI Engine
+          - generic [ref=f5e59]: Run the Agatha ONNX detection engine alongside multiscanning for a fast, signature-free second opinion — file classification plus a dedicated URL model.
+        - generic [ref=f5e60]:
+          - checkbox [checked]
+      - generic [ref=f5e62]:
+        - generic [ref=f5e63]: Operating Mode
+        - generic [ref=f5e64]:
+          - strong [ref=f5e65]: Detection
+          - text: returns a binary verdict (Clean / Infected) tuned for few false positives.
+          - strong [ref=f5e66]: Deflection
+          - text: adds an Unknown band that is forwarded to multiscanning, tuned for few false negatives — Agatha acts as a fast pre-filter.
+        - group "Agatha operating mode" [ref=f5e67]:
+          - button "Detection" [pressed] [ref=f5e68] [cursor=pointer]
+          - button "Deflection" [ref=f5e69] [cursor=pointer]
+      - generic [ref=f5e70]:
+        - generic [ref=f5e71]: Scan Layer Configuration
+        - generic [ref=f5e72]: "Control Agatha's detection layers: enable or disable the signatures layer (hash database, byte-pattern matching, IOC reputation) and configure each file family independently — toggle analysis layers and set the confidence threshold."
+        - paragraph [ref=f5e73]: ⚠ Couldn’t reach the engine to load options. Defaults will be used.
+    - generic [ref=f5e74]:
+      - button "Cancel" [ref=f5e75] [cursor=pointer]
+      - button "Save Changes" [ref=f5e76] [cursor=pointer]

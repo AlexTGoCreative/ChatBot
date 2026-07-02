@@ -1,0 +1,12 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img "Agatha" [ref=e6]
+    - heading "Welcome Back!" [level=2] [ref=e7]
+    - paragraph [ref=e8]: Please login to continue
+  - generic [ref=e9]:
+    - textbox "Username" [ref=e11]
+    - textbox "Password" [ref=e13]
+    - button "Login" [ref=e14] [cursor=pointer]
+  - paragraph [ref=e16]:
+    - text: Don't have an account?
+    - button "Register" [ref=e17] [cursor=pointer]

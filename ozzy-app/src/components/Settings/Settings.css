@@ -13,7 +13,7 @@
 
 .settings-popup {
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(160deg, rgba(15, 50, 55, 0.04), rgba(15, 50, 55, 0) 45%),
     var(--surface-1);
   border-radius: var(--r-lg);
   width: 540px;
@@ -57,7 +57,7 @@
   border-radius: var(--r-sm);
   color: var(--accent-hover);
   background: var(--accent-soft);
-  border: 1px solid rgba(29, 107, 252, 0.3);
+  border: 1px solid rgba(8, 111, 138, 0.3);
 }
 
 .settings-header h2 {
@@ -168,7 +168,8 @@
   width: 18px;
   left: 3px;
   bottom: 2px;
-  background-color: var(--text);
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(15, 40, 45, 0.35);
   transition: 0.25s;
   border-radius: 50%;
 }

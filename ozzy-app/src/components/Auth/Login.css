@@ -16,7 +16,7 @@
   max-width: 400px;
   padding: 2.5rem 2rem;
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(160deg, rgba(15, 50, 55, 0.05), rgba(15, 50, 55, 0) 55%),
     var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);

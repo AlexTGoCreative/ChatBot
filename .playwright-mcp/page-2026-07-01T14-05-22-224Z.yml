@@ -1,0 +1,52 @@
+- generic [ref=f10e3]:
+  - banner [ref=f10e4]:
+    - generic [ref=f10e5]:
+      - generic [ref=f10e6]:
+        - img [ref=f10e7]
+        - generic [ref=f10e8]: Agatha
+      - navigation [ref=f10e9]:
+        - button "Settings" [ref=f10e10] [cursor=pointer]
+        - button "Logout" [ref=f10e11] [cursor=pointer]
+  - generic [ref=f10e13]:
+    - paragraph [ref=f10e15]: "Triple A is a security analysis platform built around three engines: AGATHA for file classification, Aegis for URL classification, and Athena for explaining results — all running alongside MetaDefender for a side-by-side comparison. Learn more..."
+    - generic [ref=f10e16]:
+      - generic [ref=f10e18]:
+        - button "📄 Scan a file" [ref=f10e19] [cursor=pointer]:
+          - generic [ref=f10e20]: 📄
+          - text: Scan a file
+        - button "🔗 Scan a URL" [ref=f10e21] [cursor=pointer]:
+          - generic [ref=f10e22]: 🔗
+          - text: Scan a URL
+      - generic [ref=f10e23]:
+        - img [ref=f10e25]
+        - generic [ref=f10e29]: Scan First. Trust Nothing.
+        - generic [ref=f10e30]:
+          - generic [ref=f10e31]:
+            - textbox "Scan a file" [ref=f10e32]
+            - generic [ref=f10e34] [cursor=pointer]: attach_file
+          - button "Process" [ref=f10e35] [cursor=pointer]
+        - paragraph [ref=f10e36]: Drag & drop a file anywhere, or browse with the clip.
+  - generic:
+    - button "mode_comment close" [ref=f10e37] [cursor=pointer]:
+      - generic [ref=f10e38]: mode_comment
+      - generic [ref=f10e39]: close
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - img "Athena Chatbot"
+            - heading "Athena" [level=2]
+          - generic:
+            - button "history"
+            - button [disabled]:
+              - img
+            - button "close"
+      - generic:
+        - generic:
+          - img "Athena"
+          - generic:
+            - heading "Hey there!" [level=3]
+            - paragraph: I'm Athena, the Triple A security assistant. Ask me about your scan results, what a verdict means, or how Agatha and Aegis work.
+      - generic:
+        - generic:
+          - textbox "Message..."

@@ -13,7 +13,7 @@
 
 .logs-popup {
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(160deg, rgba(15, 50, 55, 0.04), rgba(15, 50, 55, 0) 45%),
     var(--surface-1);
   border-radius: var(--r-lg);
   width: 760px;
@@ -57,7 +57,7 @@
   border-radius: var(--r-sm);
   color: var(--accent-hover);
   background: var(--accent-soft);
-  border: 1px solid rgba(29, 107, 252, 0.3);
+  border: 1px solid rgba(8, 111, 138, 0.3);
 }
 
 .logs-header h2 {
@@ -171,10 +171,10 @@
   color: var(--text);
 }
 
-.logs-chip-v.verdict-clean { color: #34d399; }
+.logs-chip-v.verdict-clean { color: var(--safe); }
 .logs-chip-v.verdict-infected,
-.logs-chip-v.verdict-malicious { color: #f87171; }
-.logs-chip-v.verdict-unknown { color: #fbbf24; }
+.logs-chip-v.verdict-malicious { color: var(--danger); }
+.logs-chip-v.verdict-unknown { color: var(--warn); }
 
 /* Scored URLs */
 .logs-urls {
@@ -215,9 +215,9 @@
   flex-shrink: 0;
 }
 
-.logs-url-badge.verdict-clean { background: rgba(52, 211, 153, 0.15); color: #34d399; }
-.logs-url-badge.verdict-malicious { background: rgba(248, 113, 113, 0.15); color: #f87171; }
-.logs-url-badge.verdict-unknown { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.logs-url-badge.verdict-clean { background: var(--safe-soft); color: var(--safe); }
+.logs-url-badge.verdict-malicious { background: var(--danger-soft); color: var(--danger); }
+.logs-url-badge.verdict-unknown { background: var(--warn-soft); color: var(--warn); }
 
 .logs-url-text {
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -237,7 +237,7 @@
 
 /* Raw log */
 .logs-raw {
-  background: #0b0f1a;
+  background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: 0.75rem;
@@ -251,10 +251,10 @@
 
 .logs-line {
   white-space: pre;
-  color: #c7d0e0;
+  color: var(--text-muted);
 }
 
-.logs-line.lvl-error { color: #f87171; }
-.logs-line.lvl-warn { color: #fbbf24; }
-.logs-line.lvl-debug { color: #7f8ea3; }
-.logs-line.lvl-info { color: #93b4f0; }
+.logs-line.lvl-error { color: var(--danger); }
+.logs-line.lvl-warn { color: var(--warn); }
+.logs-line.lvl-debug { color: var(--text-faint); }
+.logs-line.lvl-info { color: var(--accent-hover); }
