@@ -1,7 +1,7 @@
 # Running Athena with Docker
 
 The entire stack — frontend, both backends, and their databases — runs from a
-single command. The native **Agatha file engine** and **Agatha URL engine** run
+single command. The native **Argus file engine** and **Argus URL engine** run
 inside the API container as Linux `.so` builds (the Windows `.dll` files are kept
 alongside them so the same checkout still works when run natively on Windows).
 
@@ -33,7 +33,7 @@ Open the app at: **http://localhost:8080**
 | Service   | URL / Port              | Purpose                                   |
 |-----------|-------------------------|-------------------------------------------|
 | ozzy-app  | http://localhost:8080   | React UI + reverse proxy (open this)      |
-| ozzy-api  | :5000 (proxied at /api) | Auth, scans, history, Agatha engines      |
+| ozzy-api  | :5000 (proxied at /api) | Auth, scans, history, Argus engines      |
 | ozzy-ai   | :7860 (proxied at /ask) | RAG chat assistant                        |
 | mongo     | internal                | Users, scan & chat history                |
 | qdrant    | internal :6333          | RAG vector store                          |
@@ -61,18 +61,19 @@ will use the embedding model already loaded by the service.)
 The API image contains, under `ozzy-api/engine/package/` and
 `ozzy-api/url-engine/package/`:
 
-- `libandertonengine.so` / `libhyperlinkengine.so` — the Linux engine builds
-- `libonnxruntime.so` — ONNX Runtime the engines load at runtime
-- the `.onnx` models
+- `argus.so` / `libaegisengine.so` — the Linux engine builds
+- `libonnxruntime-avx2.so` (and/or `libonnxruntime.so`) — ONNX Runtime the
+  engines load at runtime
+- the `.onnx` models (plus the signature `.lmdb` databases for the file engine)
 - the original Windows `.dll` files (ignored on Linux, used when run on Windows)
 
-These `.so` files are produced from the `agatha-engine` and `agatha-url` sources
-with `mocli build release` (see "Rebuilding the engines" below).
+These `.so` files are produced from the `argus-engine` and `aegis-engine`
+sources (see "Rebuilding the engines" below).
 
 Each engine is **loaded once** when the API container starts (the file engine's
 ONNX model is several GB resident). Scans then run on a bounded pool of worker
-threads via koffi's async interface — up to `AGATHA_SCAN_THREADS` file scans and
-`AGATHA_URL_THREADS` URL scans concurrently (default **8** each, set in `.env`).
+threads via koffi's async interface — up to `ARGUS_SCAN_THREADS` file scans and
+`ARGUS_URL_THREADS` URL scans concurrently (default **8** each, set in `.env`).
 This keeps the model loaded once while still serving multiple scans in parallel.
 
 ## Common commands
@@ -90,37 +91,37 @@ docker compose down -v            # stop and wipe all data/models
 The `.so` binaries are built on Linux from the Rust sources. On Windows, use WSL:
 
 ```bash
-# URL engine
-cd agatha-url && cargo build --release --lib      # → target/release/libhyperlinkengine.so
+# URL engine (Aegis) — build with the diagnostics feature so it emits the
+# per-scan aegis.log the UI "Logs" panel reads back.
+cd aegis-engine && cargo build --release -p aegis-engine --features diagnostics
+# → target/release/libaegisengine.so
 
-# File engine — built with diagnostics + the hyperlink SDK so it emits the
-# per-scan diagnostics log the UI "Logs" panel shows (feature vector, scan
+# File engine (Argus) — built with diagnostics + the hyperlink SDK so it emits
+# the per-scan diagnostics log the UI "Logs" panel shows (feature vector, scan
 # layers, inference verdict) and scores embedded PDF/OOXML deepscan URLs.
-# Linux ONNX Runtime must sit at the marker path first (see gotchas below).
-cd agatha-engine && \
-  RUSTFLAGS="-Awarnings" cargo xtask build-package --profile release \
-    --reputation --extractor-diagnostics --hyperlink-sdk
-# → target/release/libandertonengine.so  (+ target/package/ staged artifacts)
+cd argus-engine && \
+  ./mocli.sh build release --extractor-diagnostics --hyperlink-sdk
+# → target/package/  (argus.so + models + onnxruntime + .lmdb databases)
 ```
 
-Then copy into `ozzy-api/engine/package/`:
+Then copy the contents of `argus-engine/target/package/` into
+`ozzy-api/engine/package/` (the file engine loads the embedded Aegis SDK
+`libaegisengine.so` + `model_hyperlink.onnx` *from its own package dir* to
+score deepscan URLs in-process, so those stay beside `argus.so`),
 
-- `libandertonengine.so` (the freshly built file engine)
-- `libhyperlinkengine.so` + `model_hyperlink.onnx` — the file engine loads the
-  hyperlink SDK *from its own package dir* to score deepscan URLs in-process, so
-  these must sit beside `libandertonengine.so` (not only in `url-engine/package/`).
-
-and copy `libhyperlinkengine.so` + a Linux `libonnxruntime.so` into
+and copy `libaegisengine.so` + a Linux ONNX Runtime (`libonnxruntime-avx2.so`
+or `libonnxruntime.so`) + `model_hyperlink.onnx` into
 `ozzy-api/url-engine/package/` for the standalone URL engine.
 
 ### Engine diagnostics log
 
 The file engine writes a structured diagnostics log to
-`<ANDERTON_LOG_DIR>/engine.log` (default `engine/package/anderton/`). `ozzy-api`
-pins `ANDERTON_LOG_DIR` and sets `ANDERTON_LOG_LEVEL=debug` before init so the
+`<ARGUS_LOG_DIR>/engine.log` (default `engine/package/argus/`). `ozzy-api`
+pins `ARGUS_LOG_DIR` and sets `ARGUS_LOG_LEVEL=debug` before init so the
 feature vector + extractor lines are emitted, then returns the slice produced by
-each scan as `engine_logs` in the `/agatha-scan` response. Override the level
-with the `ANDERTON_LOG_LEVEL` env var (`info` for a quieter log).
+each scan as `engine_logs` in the `/argus-scan` response. Override the level
+with the `ARGUS_LOG_LEVEL` env var (`info` for a quieter log). The URL engine
+does the same via `AEGIS_LOG_DIR` → `url-engine/package/aegis/aegis.log`.
 
 `ozzy-api` also sets `ANDERTON_LOG_FEATURE_VECTOR=1`, which makes the engine dump
 the **full named ML feature vector** (every `feature=value`, ~600+ entries) per
@@ -132,7 +133,7 @@ scan — that is what fills the feature-vector section of the Logs panel. Set it
 - **ONNX Runtime:** `mocli build release` fetches the Linux ONNX Runtime from a
   private S3 bucket (needs AWS creds). Without creds, drop a public build at the
   marker path the build checks before staging — e.g.
-  `agatha-engine/ext/onnxruntime-avx2/onnxruntime_package/lib/libonnxruntime.so`
+  `argus-engine/ext/onnxruntime-avx2/onnxruntime_package/lib/libonnxruntime.so`
   (use ONNX Runtime **1.18.1**, x64, from the official GitHub releases) — and the
   build skips the download.
 - **Toolchain ICE:** some bleeding-edge `rustc` builds (seen with 1.94.0/1.95.0

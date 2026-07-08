@@ -37,7 +37,7 @@ const Register = ({ onRegister }) => {
       <div className="login-box">
         <div className="login-header">
           <img 
-            src="/agatha-icon.png"
+            src="/argus-icon.png"
             alt="Athena"
             className="login-logo"
           />

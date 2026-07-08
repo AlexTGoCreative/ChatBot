@@ -5,10 +5,66 @@
 
 /* ============================================================
    Athena design tokens — single source of truth for the palette.
-   Used across the nav, scan results, and Agatha settings so the
+   Used across the nav, scan results, and Argus settings so the
    whole app shares one cohesive security-console look.
+
+   Light is the default theme; [data-theme="dark"] on <html> swaps
+   in the original dark palette (toggled via the navbar button).
    ============================================================ */
 :root {
+  color-scheme: light;
+
+  /* Base surfaces — light MetaDefender Cloud palette: soft blue-grey app
+     background with white cards for a clean, cohesive enterprise look. */
+  --bg: #eef1f7;
+  --bg-2: #f7f9fc;
+  --surface-1: #ffffff;
+  --surface-2: #f4f6fb;
+  --surface-3: #e7ecf4;
+
+  /* Borders / hairlines (subtle blue-grey, matches MetaDefender card edges) */
+  --border: rgba(15, 23, 42, 0.10);
+  --border-strong: rgba(15, 23, 42, 0.18);
+
+  /* Text */
+  --text: #0f172a;
+  --text-muted: #566179;
+  --text-faint: #8b97ac;
+
+  /* Brand accent (MetaDefender vivid blue #1D6BFC) */
+  --accent: #1d6bfc;
+  --accent-hover: #1856c9;
+  --accent-strong: #1559d6;
+  --accent-soft: rgba(29, 107, 252, 0.10);
+  --accent-ring: rgba(29, 107, 252, 0.30);
+
+  /* Status colors — deepened for readable contrast on light surfaces */
+  --safe: #0f9d8a;
+  --safe-soft: rgba(15, 157, 138, 0.12);
+  --danger: #d92d3c;
+  --danger-soft: rgba(217, 45, 60, 0.10);
+  --warn: #c2740a;
+  --warn-soft: rgba(194, 116, 10, 0.12);
+
+  /* Radii & elevation — small radius for the sharp, enterprise feel */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px -14px rgba(15, 23, 42, 0.18);
+  --shadow-lg: 0 24px 60px -24px rgba(15, 23, 42, 0.22);
+  --shadow-accent: 0 8px 28px -12px rgba(29, 107, 252, 0.35);
+
+  /* Generic dark-tint overlay (hover states, hairline borders drawn on
+     top of a surface color rather than as a flat token) — flips to a
+     light tint in dark mode via the block below. */
+  --overlay-rgb: 15, 23, 42;
+}
+
+/* Original dark "Athena" palette (MetaDefender Cloud dark console look) */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
   /* Base surfaces — aligned to the MetaDefender Cloud palette
      (app bg #0C121D, cards #141B27) for a cohesive enterprise look. */
   --bg: #0c121d;
@@ -41,14 +97,12 @@
   --warn: #f7b955;
   --warn-soft: rgba(247, 185, 85, 0.12);
 
-  /* Radii & elevation — small radius for the sharp, enterprise feel */
-  --r-sm: 4px;
-  --r-md: 6px;
-  --r-lg: 8px;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px -14px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 24px 60px -24px rgba(0, 0, 0, 0.8);
   --shadow-accent: 0 8px 28px -12px rgba(29, 107, 252, 0.45);
+
+  --overlay-rgb: 255, 255, 255;
 }
 
 * {
@@ -68,6 +122,7 @@ body {
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .app-container {

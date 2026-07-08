@@ -8,13 +8,13 @@ import "./ChatBot.css";
 import axios from 'axios';
 import { api } from "../../utils/api";
 
-// The agatha result carries `engine_logs` (the per-scan diagnostics shown in the
+// The argus result carries `engine_logs` (the per-scan diagnostics shown in the
 // UI Logs panel). Those are ephemeral diagnostics for the live scan — drop them
 // before persisting to history so stored entries don't carry the full log/feature
 // vector. The in-memory result keeps them for the Logs modal.
-const withoutEngineLogs = (agatha) => {
-  if (!agatha || typeof agatha !== 'object' || agatha.engine_logs === undefined) return agatha || null;
-  const { engine_logs, ...rest } = agatha;
+const withoutEngineLogs = (argus) => {
+  if (!argus || typeof argus !== 'object' || argus.engine_logs === undefined) return argus || null;
+  const { engine_logs, ...rest } = argus;
   return rest;
 };
 
@@ -53,13 +53,13 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
   const [userInitiatedScan, setUserInitiatedScan] = useState(false);
   const [previousScanData, setPreviousScanData] = useState(null);
 
-  // SandboxData disabled — only multiscanning + Agatha are active.
-  // AgathaData is the per-file AGATHA engine verdict; it travels alongside the
+  // SandboxData disabled — only multiscanning + Argus are active.
+  // ArgusData is the per-file ARGUS engine verdict; it travels alongside the
   // MetaDefender ScanningData so Athena can explain the AI verdict for files
-  // (URL Agatha verdicts ride inside UrlScanData.agatha instead).
-  const { ScanningData, UrlScanData, AgathaData } = localData;
+  // (URL Argus verdicts ride inside UrlScanData.agatha instead).
+  const { ScanningData, UrlScanData, ArgusData } = localData;
   // A URL scan is "complete" once we have any URL data — MetaDefender lookup
-  // results and/or an Agatha URL verdict (which may be the only source when
+  // results and/or an Argus URL verdict (which may be the only source when
   // multiscanning is off).
   const scanCompleted =
     ScanningData?.scan_results?.progress_percentage === 100 ||
@@ -134,7 +134,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
           dataId,
           sha1,
           // sandboxId, // Sandbox disabled
-          agatha: withoutEngineLogs(AgathaData),
+          agatha: withoutEngineLogs(ArgusData),
         };
         scanType = 'file';
       } else if (UrlScanData) {
@@ -155,7 +155,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       if (newEntry) {
         // Persist each distinct scan only once. Anything that re-marks
         // userInitiatedScan for the same scan — clearing chat history while the
-        // results page keeps feeding the scan in via props, or a late Agatha
+        // results page keeps feeding the scan in via props, or a late Argus
         // result mutating Data — must not re-save the entry or re-post the
         // "scanned successfully" message. That re-trigger is the "it comes back
         // after I delete it" loop.
@@ -203,7 +203,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
           });
       }
     }
-  }, [scanCompleted, ScanningData, UrlScanData, AgathaData, userInitiatedScan]);
+  }, [scanCompleted, ScanningData, UrlScanData, ArgusData, userInitiatedScan]);
 
   const generateBotResponse = async (history) => {
     const updateHistory = (text, isError = false) => {
@@ -227,7 +227,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
         url_data: UrlScanData || null,
         // Strip engine_logs — the RAG backend only reads the verdict fields, so
         // shipping the full diagnostics log on every turn is pure overhead.
-        agatha: withoutEngineLogs(AgathaData),
+        agatha: withoutEngineLogs(ArgusData),
       }),
     };
 
@@ -318,17 +318,17 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       let newScanningData = null;
       // let newSandboxData = null; // Sandbox disabled
       let newUrlScanData = null;
-      let newAgathaData = null;
+      let newArgusData = null;
 
       if (entry.type === "file") {
         if (entry.dataId) {
           newScanningData = await api.getScanData(entry.dataId);
         }
-        // Restore the stored AGATHA file verdict so Athena can still explain it
+        // Restore the stored ARGUS file verdict so Athena can still explain it
         // when a scan is reloaded from history.
-        newAgathaData = entry.agatha || null;
+        newArgusData = entry.agatha || entry.argus || null;
 
-        // Sandbox disabled — only multiscanning + Agatha are active.
+        // Sandbox disabled — only multiscanning + Argus are active.
         // if (entry.sha1 && entry.sandboxId) {
         //   newSandboxData = await api.getSandboxData(entry.sha1);
         // }
@@ -342,17 +342,17 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
         } catch (e) {
           console.warn("MetaDefender URL re-lookup failed:", e?.message);
         }
-        // Re-run the Agatha URL engine so the loaded page shows both verdicts,
+        // Re-run the Argus URL engine so the loaded page shows both verdicts,
         // falling back to the stored verdict if the engine is unavailable.
-        let agatha = entry.agatha || null;
+        let argus = entry.agatha || entry.argus || null;
         try {
-          agatha = await api.getAgathaUrlScan(entry.address);
+          argus = await api.getArgusUrlScan(entry.address);
         } catch (e) {
-          console.warn("Agatha URL re-scan failed:", e?.message);
+          console.warn("Argus URL re-scan failed:", e?.message);
         }
         newUrlScanData = {
           ...(mdData || { address: entry.address }),
-          agatha,
+          agatha: argus,
         };
       }
 
@@ -360,14 +360,14 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
         ScanningData: newScanningData,
         // SandboxData: newSandboxData, // Sandbox disabled
         UrlScanData: newUrlScanData,
-        AgathaData: newAgathaData,
+        ArgusData: newArgusData,
       });
 
       onSelectHistory?.({
         ScanningData: newScanningData,
         // SandboxData: newSandboxData, // Sandbox disabled
         UrlScanData: newUrlScanData,
-        AgathaData: newAgathaData,
+        ArgusData: newArgusData,
       });
 
       setChatHistory((prev) => {
@@ -410,7 +410,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       ScanningData: entry.scanData || null,
       // SandboxData: entry.sandboxData || null, // Sandbox disabled
       UrlScanData: entry.urlData || null,
-      AgathaData: entry.agathaData || null,
+      ArgusData: entry.agathaData || entry.argusData || null,
     });
 
     setSelectedChatHistoryId(entry._id);
@@ -419,7 +419,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       ScanningData: entry.scanData || null,
       // SandboxData: entry.sandboxData || null, // Sandbox disabled
       UrlScanData: entry.urlData || null,
-      AgathaData: entry.agathaData || null,
+      ArgusData: entry.agathaData || entry.argusData || null,
     });
   };
 
@@ -443,7 +443,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
         ScanningData: null,
         // SandboxData: null, // Sandbox disabled
         UrlScanData: null,
-        AgathaData: null
+        ArgusData: null
       });
       setUserInitiatedScan(false);
       // NOTE: do NOT reset previousScanData here. On the results page the parent
@@ -474,7 +474,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
         scanData: ScanningData || null,
         // sandboxData: SandboxData || null, // Sandbox disabled
         urlData: UrlScanData || null,
-        agathaData: withoutEngineLogs(AgathaData),
+        agathaData: withoutEngineLogs(ArgusData),
         chatId: selectedChatHistoryId
       };
 
@@ -523,22 +523,22 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       };
     } else if (entry.type === "url") {
       const sources = entry.sources || [];
-      const agatha = entry.agatha;
+      const argus = entry.agatha || entry.argus;
 
-      // Lead with the Agatha URL verdict so history matches the results page
+      // Lead with the Argus URL verdict so history matches the results page
       // ("No Threats Detected" rather than MetaDefender's "Trustworthy"). Fall
-      // back to reputation sources only when no Agatha verdict was stored.
-      if (agatha && agatha.verdict !== undefined && agatha.verdict !== null) {
-        if (agatha.error || agatha.verdict === -1) {
+      // back to reputation sources only when no Argus verdict was stored.
+      if (argus && argus.verdict !== undefined && argus.verdict !== null) {
+        if (argus.error || argus.verdict === -1) {
           verdict = "Unavailable";
           color = "default";
-        } else if (agatha.verdict === 0) {
+        } else if (argus.verdict === 0) {
           verdict = "No Threats Detected";
           color = "green";
-        } else if (agatha.verdict === 1) {
-          verdict = agatha.threat_name || "Malicious";
+        } else if (argus.verdict === 1) {
+          verdict = argus.threat_name || "Malicious";
           color = "red";
-        } else if (agatha.verdict === 2) {
+        } else if (argus.verdict === 2) {
           verdict = "Suspicious";
           color = "red";
         } else {

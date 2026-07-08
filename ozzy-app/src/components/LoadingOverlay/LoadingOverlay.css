@@ -70,7 +70,7 @@
   height: 40px;
   border-radius: 50%;
   background-color: var(--safe);
-  color: #06231b;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,7 +85,7 @@
   height: 40px;
   border-radius: 50%;
   background-color: var(--danger);
-  color: #2a0a0e;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;

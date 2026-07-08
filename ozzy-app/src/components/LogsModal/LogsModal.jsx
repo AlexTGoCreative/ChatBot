@@ -4,7 +4,7 @@ import { parseHyperlinks, URL_VERDICT } from '../../utils/engineLogs';
 
 // Engine diagnostics viewer.
 //
-// The agatha file engine (built with the extractor_diagnostics + hyperlink_sdk
+// The argus file engine (built with the extractor_diagnostics + hyperlink_sdk
 // features) emits a structured log per scan — feature-extraction timings, the ML
 // feature vector, the effective scan layers, the inference verdict, and the
 // scored deepscan URLs (PDF/OOXML hyperlinks). ozzy-api captures the slice of
@@ -102,9 +102,9 @@ export default function LogsModal({ logs, onClose }) {
             <div className="logs-empty">
               <p>No engine diagnostics for this scan.</p>
               <span>
-                The agatha file engine produces diagnostics (feature vector, scan layers,
+                The argus file engine produces diagnostics (feature vector, scan layers,
                 verdict, scored deepscan URLs) only when it ran for this scan. Enable the
-                Agatha engine in Settings and scan a supported file (PE, ELF, PDF, OOXML,
+                Argus engine in Settings and scan a supported file (PE, ELF, PDF, OOXML,
                 image) to see logs here.
               </span>
             </div>
@@ -137,7 +137,7 @@ export default function LogsModal({ logs, onClose }) {
 
               {highlights && highlights.urls.length > 0 && (
                 <div className="logs-urls">
-                  <div className="logs-urls-title">Scored URLs (deepscan)</div>
+                  <div className="logs-urls-title">Scored URLs</div>
                   {highlights.urls.map((u, i) => (
                     <div className="logs-url-row" key={i}>
                       <span className={`logs-url-badge verdict-${(URL_VERDICT[u.verdict] || '').toLowerCase()}`}>

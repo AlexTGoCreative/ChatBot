@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   // Dev-only reverse proxy. Ports must match how the backends are actually run
   // locally (and what Docker/nginx use in production):
-  //   ozzy-api  → :5000   (auth, scans, history, Agatha engines)
+  //   ozzy-api  → :5000   (auth, scans, history, Argus engines)
   //   ozzy-ai   → :7860   (RAG chat: /ask and /ask/stream)
   server: {
     proxy: {

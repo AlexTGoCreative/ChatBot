@@ -5,30 +5,14 @@ import FileDropZone from "./components/Form/FileDropZone";
 import LoadingOverlay from "./components/LoadingOverlay/LoadingOverlay";
 import ScanResults from "./components/ScanResults/ScanResults";
 import Navbar from "./components/Navbar/Navbar";
-import Settings, { DEFAULT_AGATHA_SETTINGS } from "./components/Settings/Settings";
+import Settings, { DEFAULT_ARGUS_SETTINGS } from "./components/Settings/Settings";
 import LogsModal from "./components/LogsModal/LogsModal";
 import { useFileScan } from "./hooks/useFileScan";
 import Auth from "./components/Auth/Auth";
 
-const AGATHA_STORAGE_KEY = 'agatha_settings';
+const ARGUS_STORAGE_KEY = 'argus_settings';
 const MULTISCANNING_STORAGE_KEY = 'multiscanning_enabled';
-
-// Normalise a persisted `preferences` value to the per-mode shape
-// `{ detection, deflection }`. Older builds stored a single FLAT dotted-key map
-// (top-level keys like `pe`/`pdf`/`image`); those were captured under the
-// detection profile, so we wrap them as detection and leave deflection unset
-// (null → use the deflection engine's defaults). null/undefined → both null.
-function migratePreferences(prefs) {
-  if (!prefs || typeof prefs !== 'object') {
-    return { detection: null, deflection: null };
-  }
-  // Already per-mode: keys are exactly/among detection|deflection.
-  if ('detection' in prefs || 'deflection' in prefs) {
-    return { detection: prefs.detection ?? null, deflection: prefs.deflection ?? null };
-  }
-  // Flat legacy map → treat as the detection profile's saved prefs.
-  return { detection: prefs, deflection: null };
-}
+const THEME_STORAGE_KEY = 'ozzy_theme';
 
 export default function App() {
   const [scanSource, setScanSource] = useState({ type: null, value: null });
@@ -39,24 +23,26 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [activeTab, setActiveTab] = useState('file');
-  const [agathaSettings, setAgathaSettings] = useState(() => {
-    const saved = localStorage.getItem(AGATHA_STORAGE_KEY);
-    // Merge with defaults so settings persisted before new keys (e.g.
-    // per-file-type preferences) were introduced still get sensible values.
-    if (!saved) return DEFAULT_AGATHA_SETTINGS;
-    const parsed = { ...DEFAULT_AGATHA_SETTINGS, ...JSON.parse(saved) };
-    parsed.preferences = migratePreferences(parsed.preferences);
-    return parsed;
+  const [argusSettings, setArgusSettings] = useState(() => {
+    const saved = localStorage.getItem(ARGUS_STORAGE_KEY)
+      ?? localStorage.getItem('agatha_settings');
+    if (!saved) return DEFAULT_ARGUS_SETTINGS;
+    const parsed = JSON.parse(saved);
+    // Strip legacy mode/per-mode prefs shape from older builds.
+    const { mode, preferences, ...rest } = parsed;
+    const flatPrefs = preferences?.detection ?? preferences?.deflection ?? preferences ?? null;
+    return { ...DEFAULT_ARGUS_SETTINGS, ...rest, preferences: flatPrefs };
   });
   const [multiscanningEnabled, setMultiscanningEnabled] = useState(() => {
     const saved = localStorage.getItem(MULTISCANNING_STORAGE_KEY);
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_STORAGE_KEY) || 'light');
 
   const {
     data,
     UrlData,
-    agathaResult,
+    argusResult,
     isLoading,
     error,
     isComplete,
@@ -66,7 +52,7 @@ export default function App() {
     retryScan,
     dismissScan,
     scanType
-  } = useFileScan(scanSource, user, multiscanningEnabled, agathaSettings);
+  } = useFileScan(scanSource, user, multiscanningEnabled, argusSettings);
 
 
   const handleFormSubmit = (input, type) => {
@@ -106,26 +92,37 @@ export default function App() {
 
   // Engine diagnostics for the current scan. The file engine returns them as
   // `engine_logs`; the URL engine nests its result under `urlData.agatha`.
-  const engineLogs = agathaResult?.engine_logs || UrlData?.agatha?.engine_logs || '';
+  const engineLogs = argusResult?.engine_logs || UrlData?.agatha?.engine_logs || '';
 
   const handleChatbotToggle = (isOpen) => {
     setShowChatbot(isOpen);
   };
 
-  // Persist all settings (multiscanning + Agatha) from the Settings panel.
-  const handleSaveSettings = ({ multiscanningEnabled: nextMulti, agathaSettings: nextAgatha }) => {
+  // Persist all settings (multiscanning + Argus) from the Settings panel.
+  const handleSaveSettings = ({ multiscanningEnabled: nextMulti, argusSettings: nextArgus }) => {
     setMultiscanningEnabled(nextMulti);
     localStorage.setItem(MULTISCANNING_STORAGE_KEY, JSON.stringify(nextMulti));
-    setAgathaSettings(nextAgatha);
-    localStorage.setItem(AGATHA_STORAGE_KEY, JSON.stringify(nextAgatha));
+    setArgusSettings(nextArgus);
+    localStorage.setItem(ARGUS_STORAGE_KEY, JSON.stringify(nextArgus));
   };
 
   // Show results when scan is complete
   useEffect(() => {
-    if (isComplete && (data || UrlData || agathaResult)) {
+    if (isComplete && (data || UrlData || argusResult)) {
       setShowResults(true);
     }
-  }, [isComplete, data, UrlData, agathaResult]);
+  }, [isComplete, data, UrlData, argusResult]);
+
+  // Apply the light/dark theme to the document root so index.css's
+  // `[data-theme="dark"]` token overrides take effect app-wide.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   if (!isAuthenticated) {
     return <Auth onAuthSuccess={handleAuthSuccess} />;
@@ -133,7 +130,7 @@ export default function App() {
 
   const settingsModal = showSettings && (
     <Settings
-      agathaSettings={agathaSettings}
+      argusSettings={argusSettings}
       multiscanningEnabled={multiscanningEnabled}
       onSave={handleSaveSettings}
       onClose={() => setShowSettings(false)}
@@ -154,7 +151,7 @@ export default function App() {
       Data={{
         ScanningData: data,
         UrlScanData: UrlData,
-        AgathaData: agathaResult,
+        ArgusData: argusResult,
       }}
       user={user}
       onToggle={handleChatbotToggle}
@@ -169,14 +166,15 @@ export default function App() {
         onOpenLogs={showResults ? () => setShowLogs(true) : undefined}
         onLogout={handleLogout}
         scanMode={showResults ? scanType : activeTab}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {showResults ? (
         <ScanResults
           scanData={data}
           urlData={UrlData}
-          agathaResult={agathaResult}
-          agathaMode={agathaSettings?.mode || 'detection'}
+          argusResult={argusResult}
           multiscanningEnabled={multiscanningEnabled}
           scanFile={scanSource?.type === 'file' ? scanSource.value : null}
           scanType={scanType}

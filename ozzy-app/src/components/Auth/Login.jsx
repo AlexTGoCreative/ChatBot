@@ -30,8 +30,8 @@ const Login = ({ onLogin }) => {
       <div className="login-box">
         <div className="login-header">
           <img 
-            src="/agatha-icon.png"
-            alt="Agatha"
+            src="/argus-icon.png"
+            alt="Argus"
             className="login-logo"
           />
           <h2>Welcome Back!</h2>

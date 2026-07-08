@@ -209,7 +209,7 @@
 
 /* Secondary detail lines stay small and muted */
 .status-content > p.threat-name,
-.status-content > p.agatha-probability {
+.status-content > p.argus-probability {
   font-size: 0.78rem;
   font-weight: 500;
   margin-top: 0.45rem;
@@ -229,62 +229,6 @@
   color: var(--text-muted);
 }
 
-/* Deflection "Uncertain — forward to multiscanning" verdict: amber/neutral,
-   distinct from the red threat card and green clean card. Never red, never
-   "blocked". */
-.status-uncertain {
-  color: var(--warn);
-  font-weight: 600;
-}
-
-.status-card.uncertain {
-  border-color: rgba(247, 185, 85, 0.35);
-  background:
-    linear-gradient(160deg, var(--warn-soft), rgba(247, 185, 85, 0) 60%),
-    var(--surface-1);
-}
-
-.status-card.uncertain:hover {
-  border-color: rgba(247, 185, 85, 0.55);
-}
-
-/* Mode badge ("Mode: Detection" / "Mode: Deflection") on the Agatha card */
-.status-card-titlerow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.7rem;
-}
-
-.status-card-titlerow h3 {
-  margin: 0;
-}
-
-.mode-badge {
-  flex-shrink: 0;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  padding: 0.18rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  background: var(--surface-2);
-}
-
-.mode-badge.mode-detection {
-  color: var(--accent-hover);
-  background: var(--accent-soft);
-  border-color: rgba(29, 107, 252, 0.3);
-}
-
-.mode-badge.mode-deflection {
-  color: var(--warn);
-  background: var(--warn-soft);
-  border-color: rgba(247, 185, 85, 0.3);
-}
 
 /* Main Content Layout */
 .main-content {
@@ -296,7 +240,7 @@
 /* Left Panel - Multiscanning */
 .multiscanning-section {
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 50%),
+    linear-gradient(160deg, rgba(var(--overlay-rgb), 0.025), rgba(255, 255, 255, 0) 50%),
     var(--surface-1);
   border-radius: var(--r-lg);
   padding: 1.4rem;
@@ -433,7 +377,7 @@
 }
 
 .engine-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--overlay-rgb), 0.025);
 }
 
 .engine-row.clean {
@@ -481,7 +425,7 @@
 
 .file-overview-section, .scan-history-section {
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 50%),
+    linear-gradient(160deg, rgba(var(--overlay-rgb), 0.025), rgba(255, 255, 255, 0) 50%),
     var(--surface-1);
   border-radius: var(--r-lg);
   padding: 1.25rem;
@@ -591,7 +535,7 @@
 /* Sandbox Analysis Styles */
 .sandbox-section {
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 50%),
+    linear-gradient(160deg, rgba(var(--overlay-rgb), 0.025), rgba(255, 255, 255, 0) 50%),
     var(--surface-1);
   border-radius: var(--r-lg);
   padding: 1.25rem;
@@ -614,7 +558,7 @@
   align-items: center;
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(var(--overlay-rgb), 0.1);
 }
 
 .sandbox-threat-score {
@@ -631,7 +575,7 @@
 
 .threat-score-label {
   font-size: 0.65rem;
-  color: #8892b0;
+  color: var(--text-muted);
   font-weight: 600;
   letter-spacing: 1px;
 }
@@ -677,13 +621,13 @@
 }
 
 .threat-indicators h3 {
-  color: #ffffff;
+  color: var(--text);
   margin: 0 0 0.4rem 0;
   font-size: 0.95rem;
 }
 
 .indicators-subtitle {
-  color: #8892b0;
+  color: var(--text-muted);
   margin: 0 0 1rem 0;
   font-size: 0.9rem;
 }
@@ -730,7 +674,7 @@
 }
 
 .indicator-count {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(var(--overlay-rgb), 0.12);
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -745,7 +689,7 @@
   align-items: flex-start;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
-  color: #e2e8f0;
+  color: var(--text);
 }
 
 .indicator-icon {
@@ -764,13 +708,13 @@
 }
 
 .indicators-compromise h3 {
-  color: #ffffff;
+  color: var(--text);
   margin: 0 0 0.5rem 0;
   font-size: 1.1rem;
 }
 
 .iocs-subtitle {
-  color: #8892b0;
+  color: var(--text-muted);
   margin: 0 0 1rem 0;
   font-size: 0.9rem;
 }
@@ -787,9 +731,9 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--overlay-rgb), 0.05);
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--overlay-rgb), 0.1);
 }
 
 .ioc-icon {
@@ -798,7 +742,7 @@
 
 .ioc-label {
   font-size: 0.85rem;
-  color: #e2e8f0;
+  color: var(--text);
   font-weight: 500;
 }
 
@@ -813,10 +757,10 @@
 }
 
 .yara-rules {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(var(--overlay-rgb), 0.03);
   border-radius: 6px;
   padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--overlay-rgb), 0.1);
 }
 
 .yara-item {
@@ -824,7 +768,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(var(--overlay-rgb), 0.05);
   font-size: 0.9rem;
 }
 
@@ -833,7 +777,7 @@
 }
 
 .yara-label {
-  color: #e2e8f0;
+  color: var(--text);
 }
 
 .yara-status {
@@ -855,8 +799,8 @@
 
 .show-more-btn {
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #8892b0;
+  border: 1px solid rgba(var(--overlay-rgb), 0.12);
+  color: var(--text-muted);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -866,13 +810,13 @@
 }
 
 .show-more-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(var(--overlay-rgb), 0.05);
+  border-color: rgba(var(--overlay-rgb), 0.2);
 }
 
 /* Scan History */
 .scan-history-info {
-  color: #8892b0;
+  color: var(--text-muted);
   margin: 0;
   font-size: 0.8rem;
 }
@@ -1003,7 +947,7 @@
     display: flex;
     border-left: none !important;
     background: none !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(var(--overlay-rgb), 0.1);
     border-radius: 4px;
     margin-bottom: 0.25rem;
   }
@@ -1206,7 +1150,7 @@
 
   .label {
     font-size: 0.65rem;
-    color: #a0a9b8;
+    color: var(--text-muted);
   }
 
   .value {
@@ -1411,44 +1355,41 @@
   }
 }
 
-/* Agatha Engine Styles */
-.status-card.agatha::before {
+/* Argus Engine Styles */
+.status-card.argus::before {
   background: linear-gradient(180deg, var(--accent), rgba(79, 140, 255, 0.4));
 }
 
-.status-card.agatha.clean::before {
+.status-card.argus.clean::before {
   background: linear-gradient(180deg, var(--safe), rgba(47, 224, 176, 0.4));
 }
 
-.status-card.agatha.threat::before {
+.status-card.argus.threat::before {
   background: linear-gradient(180deg, var(--danger), rgba(255, 107, 120, 0.4));
 }
 
-.status-card.agatha.uncertain::before {
-  background: linear-gradient(180deg, var(--warn), rgba(247, 185, 85, 0.4));
-}
 
-.agatha-probability {
+.argus-probability {
   font-size: 0.7rem;
   color: var(--text-muted);
   margin-top: 2px;
 }
 
-.engine-row.agatha-row {
+.engine-row.argus-row {
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-.engine-row.agatha-row.threat {
+.engine-row.argus-row.threat {
   background: var(--danger-soft);
   box-shadow: inset 3px 0 0 var(--danger);
 }
 
-.engine-row.agatha-row.clean {
+.engine-row.argus-row.clean {
   box-shadow: inset 3px 0 0 var(--safe);
 }
 
-.agatha-badge {
+.argus-badge {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -1461,7 +1402,7 @@
   font-weight: 600;
 }
 
-.agatha-confidence {
+.argus-confidence {
   display: block;
   font-size: 0.65rem;
   color: var(--text-muted);
@@ -1469,7 +1410,7 @@
 }
 
 /* ── Extracted links (PDF/OOXML deepscan URL scoring) ───────────────────────── */
-.agatha-links-section {
+.argus-links-section {
   margin: 1.25rem 0;
   background: var(--surface-1);
   border: 1px solid var(--border);
@@ -1477,21 +1418,21 @@
   padding: 1.1rem 1.4rem 1.2rem;
 }
 
-.agatha-links-sub {
+.argus-links-sub {
   display: block;
   font-size: 0.78rem;
   color: var(--text-faint);
   margin-top: 0.15rem;
 }
 
-.agatha-links-list {
+.argus-links-list {
   margin-top: 0.9rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.agatha-link-row {
+.argus-link-row {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -1501,7 +1442,7 @@
   border-radius: var(--r-sm);
 }
 
-.agatha-link-badge {
+.argus-link-badge {
   flex-shrink: 0;
   font-size: 0.7rem;
   font-weight: 700;
@@ -1511,11 +1452,11 @@
   color: var(--text-muted);
 }
 
-.agatha-link-badge.verdict-clean { background: rgba(52, 211, 153, 0.15); color: #34d399; }
-.agatha-link-badge.verdict-malicious { background: rgba(248, 113, 113, 0.15); color: #f87171; }
-.agatha-link-badge.verdict-unknown { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.argus-link-badge.verdict-clean { background: var(--safe-soft); color: var(--safe); }
+.argus-link-badge.verdict-malicious { background: var(--danger-soft); color: var(--danger); }
+.argus-link-badge.verdict-unknown { background: var(--warn-soft); color: var(--warn); }
 
-.agatha-link-url {
+.argus-link-url {
   flex: 1;
   min-width: 0;
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -1526,7 +1467,7 @@
   white-space: nowrap;
 }
 
-.agatha-link-score {
+.argus-link-score {
   flex-shrink: 0;
   font-size: 0.75rem;
   color: var(--text-faint);

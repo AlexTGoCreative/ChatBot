@@ -1,4 +1,4 @@
-// Helpers for reading the agatha file-engine diagnostics log (the `engine_logs`
+// Helpers for reading the argus file-engine diagnostics log (the `engine_logs`
 // string returned per scan). The engine logs each deepscan-scored hyperlink as:
 //   [INFO |ANDERTON] Hyperlink result [URL='https://x' Verdict='1' MaliciousProb='0.8234']
 // so both the Logs panel and the results-page "Extracted Links" section parse

@@ -12,16 +12,16 @@ const fetcher = url => axios.get(url, {
   }
 }).then(res => res.data);
 
-export function useFileScan(scanSource, user, multiscanningEnabled = true, agathaSettings = null) {
+export function useFileScan(scanSource, user, multiscanningEnabled = true, argusSettings = null) {
   const { cache } = useSWRConfig();
   const [data, setData] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
   const [hash, setHash] = useState(null);
   const [scanError, setScanError] = useState(null);
-  // Sandbox feature disabled — only multiscanning + Agatha are active.
+  // Sandbox feature disabled — only multiscanning + Argus are active.
   // const [sandboxData, setSandboxData] = useState(null);
   const [UrlData, setUrlData] = useState(null);
-  const [agathaResult, setAgathaResult] = useState(null);
+  const [argusResult, setArgusResult] = useState(null);
   const [scanStatus, setScanStatus] = useState('idle'); // 'idle', 'scanning', 'success', 'error'
   const [scanProgress, setScanProgress] = useState(0);
   const [scanMessage, setScanMessage] = useState('');
@@ -34,7 +34,7 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
     setScanError(null);
     // setSandboxData(null);
     setUrlData(null);
-    setAgathaResult(null);
+    setArgusResult(null);
     setScanStatus('idle');
     setScanProgress(0);
     setScanMessage('');
@@ -85,7 +85,7 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
             setScanMessage('');
           }, 2000);
 
-          // Sandbox feature disabled — only multiscanning + Agatha are active.
+          // Sandbox feature disabled — only multiscanning + Argus are active.
           // const sandboxId = newData?.last_sandbox_id?.[0]?.sandbox_id;
           // const sha1 = newData?.file_info?.sha1;
           //
@@ -125,7 +125,7 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
       setIsComplete(false);
       setScanError(null);
       // setSandboxData(null);
-      setAgathaResult(null);
+      setArgusResult(null);
       setScanProgress(0);
       
       // Set initial scanning state
@@ -136,44 +136,37 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
       if (scanSource.type === 'file') {
         setScanMessage('Scanning file...');
 
-        // Run the Agatha engine scan only when the user enabled it in settings.
-        const agathaEnabled = !!agathaSettings?.enabled;
+        // Run the Argus engine scan only when the user enabled it in settings.
+        const argusEnabled = !!argusSettings?.enabled;
 
         // With no scanner selected there is nothing to run — surface a clear
         // error instead of silently "completing" with an empty result page.
-        if (!multiscanningEnabled && !agathaEnabled) {
+        if (!multiscanningEnabled && !argusEnabled) {
           setScanStatus('error');
-          setScanMessage('No scanner enabled. Turn on Multiscanning or the Agatha engine to scan a file.');
+          setScanMessage('No scanner enabled. Turn on Multiscanning or the Argus engine to scan a file.');
           return;
         }
-        const agathaPromise = agathaEnabled
+        const argusPromise = argusEnabled
           ? (async () => {
               try {
-                const agathaFormData = new FormData();
-                agathaFormData.append('file', scanSource.value);
-                // Operating mode: 'detection' (binary) or 'deflection' (ternary).
-                // The engine echoes it back on the result so the UI can render
-                // the matching verdict regime.
-                const mode = agathaSettings?.mode || 'detection';
-                // Per-file-type preferences chosen in Agatha settings (layer
-                // toggles + thresholds) for the ACTIVE mode only. Sent as a JSON
-                // string; when absent/empty the engine falls back to that mode's
-                // built-in profile defaults.
-                const prefs = agathaSettings?.preferences?.[mode];
+                const argusFormData = new FormData();
+                argusFormData.append('file', scanSource.value);
+                // Per-file-type preferences (layer toggles + thresholds). Sent
+                // as a JSON string; when absent/empty the engine uses its defaults.
+                const prefs = argusSettings?.preferences;
                 if (prefs && typeof prefs === 'object' && Object.keys(prefs).length > 0) {
-                  agathaFormData.append('preferences', JSON.stringify(prefs));
+                  argusFormData.append('preferences', JSON.stringify(prefs));
                 }
-                agathaFormData.append('mode', mode);
-                const agathaRes = await axios.post(`${API_URL}/agatha-scan`, agathaFormData, {
+                const argusRes = await axios.post(`${API_URL}/agatha-scan`, argusFormData, {
                   headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                   },
                 });
-                setAgathaResult(agathaRes.data);
-              } catch (agathaErr) {
-                console.error('Agatha engine scan error:', agathaErr);
-                setAgathaResult({
-                  engine: 'Agatha',
+                setArgusResult(argusRes.data);
+              } catch (argusErr) {
+                console.error('Argus engine scan error:', argusErr);
+                setArgusResult({
+                  engine: 'Argus',
                   verdict: -1,
                   error: 'Engine unavailable'
                 });
@@ -194,8 +187,8 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
           const { hash } = response.data;
           setHash(hash);
         } else {
-          // Wait for Agatha to complete, then mark done
-          await agathaPromise;
+          // Wait for Argus to complete, then mark done
+          await argusPromise;
           setIsComplete(true);
           setScanStatus('success');
           setTimeout(() => {
@@ -206,30 +199,29 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
         setScanMessage('Processing URL...');
 
         // URLs mirror the file flow: MetaDefender URL reputation (gated by
-        // multiscanning) runs alongside the Agatha URL engine (gated by Agatha
-        // settings) so the two verdicts can be compared. The Agatha verdict is
+        // multiscanning) runs alongside the Argus URL engine (gated by Argus
+        // settings) so the two verdicts can be compared. The Argus verdict is
         // merged into the URL data object under `.agatha`.
-        const agathaEnabled = !!agathaSettings?.enabled;
+        const argusEnabled = !!argusSettings?.enabled;
 
-        if (!multiscanningEnabled && !agathaEnabled) {
+        if (!multiscanningEnabled && !argusEnabled) {
           setScanStatus('error');
-          setScanMessage('No scanner enabled. Turn on Multiscanning or the Agatha engine to scan a URL.');
+          setScanMessage('No scanner enabled. Turn on Multiscanning or the Argus engine to scan a URL.');
           return;
         }
 
         const encodedUrl = encodeURIComponent(scanSource.value);
 
-        // Agatha URL engine (independent ONNX verdict). Never throws — surfaces
+        // Argus URL engine (independent ONNX verdict). Never throws — surfaces
         // a graceful "unavailable" entry so it can't break the MetaDefender flow.
-        const agathaMode = agathaSettings?.mode || 'detection';
-        const agathaUrlPromise = agathaEnabled
-          ? axios.get(`${API_URL}/agatha-url-scan?url=${encodedUrl}&mode=${agathaMode}`, {
+        const argusUrlPromise = argusEnabled
+          ? axios.get(`${API_URL}/agatha-url-scan?url=${encodedUrl}`, {
               headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
             })
               .then(r => r.data)
-              .catch(agathaErr => {
-                console.error('Agatha URL engine scan error:', agathaErr);
-                return { engine: 'Agatha URL', verdict: -1, error: 'Engine unavailable' };
+              .catch(argusErr => {
+                console.error('Argus URL engine scan error:', argusErr);
+                return { engine: 'Argus URL', verdict: -1, error: 'Engine unavailable' };
               })
           : Promise.resolve(null);
 
@@ -243,14 +235,14 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
             }).then(r => r.data)
           : Promise.resolve(null);
 
-        const [mdData, agathaData] = await Promise.all([mdUrlPromise, agathaUrlPromise]);
+        const [mdData, argusData] = await Promise.all([mdUrlPromise, argusUrlPromise]);
 
         // Build a single URL data object. When multiscanning is off we still
         // need an `address` so the results page and history have something to
         // key on.
         const merged = {
           ...(mdData || { address: scanSource.value }),
-          agatha: agathaData || null,
+          agatha: argusData || null,
         };
         setUrlData(merged);
 
@@ -296,7 +288,7 @@ export function useFileScan(scanSource, user, multiscanningEnabled = true, agath
     data,
     // sandboxData, // Sandbox feature disabled
     UrlData,
-    agathaResult,
+    argusResult,
     error: error || scanError,
     isLoading: !data && !error && !scanError,
     isComplete,

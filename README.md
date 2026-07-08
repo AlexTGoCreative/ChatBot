@@ -21,9 +21,9 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 
 ## Overview
 
-**Athena** is a full-stack cybersecurity scanning and analysis platform that combines OPSWAT MetaDefender Cloud multiscanning with an in-house **Agatha Detection AI** engine (ONNX ML-based malware classification, for both **files** and **URLs**) and OpenAI's GPT-5.4 nano model. Users can upload files or submit URLs to get multi-engine malware verdicts, and then ask an AI assistant context-aware questions about the results — including the AGATHA verdict — powered by a Retrieval-Augmented Generation (RAG) pipeline built on MetaDefender documentation.
+**Athena** is a full-stack cybersecurity scanning and analysis platform that combines OPSWAT MetaDefender Cloud multiscanning with an in-house **Argus Detection AI** engine (ONNX ML-based malware classification, for both **files** and **URLs**) and OpenAI's GPT-5.4 nano model. Users can upload files or submit URLs to get multi-engine malware verdicts, and then ask an AI assistant context-aware questions about the results — including the ARGUS verdict — powered by a Retrieval-Augmented Generation (RAG) pipeline built on MetaDefender documentation.
 
-> **Engines available:** MetaDefender Cloud multiscanning (toggleable) and the in-process AGATHA AI engines (file classifier + URL/hyperlink classifier). The MetaDefender sandbox and hash-lookup tabs are disabled in this build.
+> **Engines available:** MetaDefender Cloud multiscanning (toggleable) and the in-process ARGUS AI engines (file classifier + URL/hyperlink classifier). The MetaDefender sandbox and hash-lookup tabs are disabled in this build.
 
 ## Architecture
 
@@ -42,7 +42,7 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 │                          │  │                                       │
 │ • JWT Authentication     │  │ • OpenAI GPT-5.4 nano LLM            │
 │ • MetaDefender API Proxy │  │ • Qdrant Vector Store                 │
-│ • Agatha engine (in-proc)│  │ • BGE-M3 Embeddings                   │
+│ • Argus engine (in-proc)│  │ • BGE-M3 Embeddings                   │
 │ • File upload (multer)   │  │ • RAG pipeline with re-ranking        │
 │ • MongoDB (users, hist.) │  │ • Streaming SSE responses             │
 └──────────┬───────────────┘  └───────────────────────────────────────┘
@@ -50,10 +50,10 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
      ┌─────┴──────────────┐
      ▼                    ▼
 ┌──────────────────┐  ┌────────────────────────────────────────────┐
-│ MetaDefender     │  │  Agatha Engines (native, in-process)       │
+│ MetaDefender     │  │  Native engines (in-process)               │
 │ Cloud API        │  │                                            │
-│ (30+ AV engines, │  │  • andertonengine.dll  — file classifier   │
-│  URL reputation) │  │  • hyperlinkengine.dll — URL classifier    │
+│ (30+ AV engines, │  │  • argus.dll / .so  — Argus file classifier│
+│  URL reputation) │  │  • aegisengine.dll / .so — Aegis URL cls.  │
 └──────────────────┘  │  • loaded once via koffi · ONNX inference   │
                       │  • UIF `process` + `getWorkflowInfo` FFI   │
                       │  • per-file-type layers + thresholds       │
@@ -64,15 +64,15 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 ## Features
 
 ### Threat Scanning
-- **Agatha Detection AI (files)** — In-house ONNX ML engine that classifies files as Clean / Infected / Inconclusive, with per-file-type layer toggles and thresholds (enabled by default)
-- **Agatha URL/Hyperlink AI** — In-house ONNX ML engine that classifies URLs as Clean / Suspicious / Malicious from the URL string alone (static, no fetch)
+- **Argus Detection AI (files)** — In-house ONNX ML engine that classifies files as Clean / Infected / Inconclusive, with per-file-type layer toggles and thresholds (enabled by default)
+- **Argus URL/Hyperlink AI** — In-house ONNX ML engine that classifies URLs as Clean / Suspicious / Malicious from the URL string alone (static, no fetch)
 - **Multiscanning** — Upload any file for analysis by 30+ anti-malware engines via MetaDefender (toggleable)
-- **URL reputation** — Submit URLs for MetaDefender reputation + WHOIS, shown alongside the Agatha URL verdict
+- **URL reputation** — Submit URLs for MetaDefender reputation + WHOIS, shown alongside the Argus URL verdict
 - **Detailed results** — Per-engine verdicts, threat scores, file metadata, and detection classifications, with JSON export
 - **Concurrency** — The native engines are loaded once and serve up to 8 concurrent scans (configurable)
 
 ### AI Assistant (Athena)
-- **Context-aware chat** — Ask questions about scan results; the bot receives the full scan context, including the **AGATHA file and URL verdicts**, and explains them
+- **Context-aware chat** — Ask questions about scan results; the bot receives the full scan context, including the **ARGUS file and URL verdicts**, and explains them
 - **Persistent conversation** — The same chat carries across the main page and the scan-results page
 - **RAG pipeline** — Retrieves relevant MetaDefender documentation to ground AI responses
 - **Multi-language** — Detects query language and responds in kind
@@ -108,9 +108,9 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 │   │   │   ├── Form/            # File upload & URL input
 │   │   │   ├── LoadingOverlay/  # Scan progress indicator
 │   │   │   ├── ScanResults/     # Results display & export
-│   │   │   └── Settings/        # Schema-driven Agatha engine settings
+│   │   │   └── Settings/        # Schema-driven Argus engine settings
 │   │   ├── hooks/
-│   │   │   └── useFileScan.js   # Scan lifecycle (Agatha + MetaDefender)
+│   │   │   └── useFileScan.js   # Scan lifecycle (Argus + MetaDefender)
 │   │   └── utils/
 │   │       └── api.js           # HTTP client for Express server
 │   ├── package.json
@@ -118,8 +118,8 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 │   ├── nginx.conf               # /api→ozzy-api, /ask→ozzy-ai
 │   └── vite.config.js           # Dev proxy: /scan→:5000, /ask→:7860
 │
-├── ozzy-api/                # Express API server (+ native Agatha engines)
-│   ├── index.js             # Routes (auth, scan proxy, agatha file/URL, history)
+├── ozzy-api/                # Express API server (+ native Argus engines)
+│   ├── index.js             # Routes (auth, scan proxy, argus file/URL, history)
 │   ├── engine/
 │   │   ├── index.js         # File engine koffi binding (load-once + scanAsync)
 │   │   └── package/         # File engine artifacts (git-ignored)
@@ -132,7 +132,7 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 │   │   └── auth.js          # JWT verification middleware
 │   ├── models/
 │   │   ├── User.js          # User schema (username, hashed password)
-│   │   ├── ChatHistory.js   # Chat messages + scan context (incl. agathaData)
+│   │   ├── ChatHistory.js   # Chat messages + scan context (incl. argusData)
 │   │   └── ScanHistory.js   # File/URL scan records
 │   ├── Dockerfile
 │   └── package.json
@@ -143,7 +143,7 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 │   │   ├── retrieval.py     # Qdrant hybrid search (dense + sparse, RRF)
 │   │   ├── generation.py    # OpenAI Responses API + streaming
 │   │   ├── reranking.py     # BGE-reranker-v2-m3 cross-encoder
-│   │   ├── schemas.py       # /ask payload (incl. file + URL agatha verdicts)
+│   │   ├── schemas.py       # /ask payload (incl. file + URL argus verdicts)
 │   │   └── context.py       # System prompt + scan context assembly
 │   ├── scripts/
 │   │   ├── scrape_docs.py   # Playwright scraper for MD docs
@@ -157,7 +157,7 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 ```
 
 > The native engines now run **in-process** inside `ozzy-api` via koffi — there
-> is no separate Agatha HTTP host (the old `agatha/` server on `:3002` is gone).
+> is no separate Argus HTTP host (the old `argus/` server on `:3002` is gone).
 
 ## Prerequisites
 
@@ -166,7 +166,7 @@ Then open **http://localhost:8080**. See **[DOCKER.md](DOCKER.md)** for details.
 - **MongoDB** instance (local or Atlas)
 - **OPSWAT MetaDefender Cloud API key** — [Get one here](https://metadefender.opswat.com/)
 - **OpenAI API key** — [Get one here](https://platform.openai.com/api-keys)
-- **Agatha engine build** — Compiled `andertonengine.dll` + ONNX model (from `agatha-engine` repo)
+- **Argus engine build** — Compiled `andertonengine.dll` + ONNX model (from `argus-engine` repo)
 
 ## Environment Variables
 
@@ -186,11 +186,11 @@ METADEFENDER_API_KEY=your_metadefender_api_key
 JWT_SECRET=your_jwt_secret
 # Optional — override the native engine package directories.
 # Default to ozzy-api/engine/package and ozzy-api/url-engine/package.
-# AGATHA_PACKAGE_DIR=./engine/package
-# AGATHA_URL_PACKAGE_DIR=./url-engine/package
+# ARGUS_PACKAGE_DIR=./engine/package
+# ARGUS_URL_PACKAGE_DIR=./url-engine/package
 # Optional — max concurrent scans per engine (default 8 each).
-# AGATHA_SCAN_THREADS=8
-# AGATHA_URL_THREADS=8
+# ARGUS_SCAN_THREADS=8
+# ARGUS_URL_THREADS=8
 ```
 
 ### `ozzy-ai/.env`
@@ -215,20 +215,20 @@ cd Ozzy
 > git submodule update --init --recursive
 > ```
 
-### 2. Provide the native Agatha engine package
+### 2. Provide the native Argus engine package
 
 The engine DLL and ONNX models are loaded in-process by `ozzy-api`. Place the
 built engine package under `ozzy-api/engine/package/`:
 
 ```bash
-# From the agatha-engine repo after building:
+# From the argus-engine repo after building:
 cp -r target/package/* ../ChatBot/ozzy-api/engine/package/
 ```
 
 The directory should contain `andertonengine.dll` (or `libandertonengine.so`),
 the `onnxruntime-*` libraries, the `model_*.onnx` files, `falsedetection.txt`,
 and the `reputation-engine/` folder. If the DLL is missing, `ozzy-api` still
-starts and Agatha scans report "engine unavailable".
+starts and Argus scans report "engine unavailable".
 
 ### 3. Start the Express Server
 
@@ -239,7 +239,7 @@ npm run dev
 ```
 
 The server starts on `http://localhost:5000`. It handles authentication, proxies
-scan requests to MetaDefender, runs the Agatha engine in-process via koffi FFI,
+scan requests to MetaDefender, runs the Argus engine in-process via koffi FFI,
 and manages MongoDB data.
 
 ### 4. Start the Python AI Backend
@@ -282,19 +282,19 @@ Navigate to `http://localhost:5173`. Register an account, then start scanning fi
 ## How It Works
 
 1. **User uploads a file** → React sends it to the Express server
-2. **If Agatha is enabled**, Express runs the native engine in-process (ONNX ML inference) with the per-file-type preferences chosen in Settings
+2. **If Argus is enabled**, Express runs the native engine in-process (ONNX ML inference) with the per-file-type preferences chosen in Settings
 3. **If multiscanning is enabled**, Express also proxies to MetaDefender Cloud (30+ AV engines)
 4. **Frontend shows progress** overlay during scanning
-5. **Results are displayed** — engine verdicts (Agatha + MetaDefender), threat score, file metadata
+5. **Results are displayed** — engine verdicts (Argus + MetaDefender), threat score, file metadata
 6. **User opens the chat** and asks about the results
-7. **Chat request goes to FastAPI** with full scan context attached — including the AGATHA file and URL verdicts — so Athena can explain them
+7. **Chat request goes to FastAPI** with full scan context attached — including the ARGUS file and URL verdicts — so Athena can explain them
 8. **RAG pipeline retrieves** relevant documentation from Qdrant (hybrid search + reranking)
 9. **GPT-5.4 nano generates** a context-aware response combining docs + scan data
 10. **All history is persisted** in MongoDB for future reference
 
-## Agatha Detection Engine
+## Argus Detection Engine
 
-The Agatha engine is a Rust-compiled shared library (`andertonengine.dll` / `libandertonengine.so`) that classifies files using ONNX machine-learning models. It is loaded directly into the `ozzy-api` process via [koffi](https://koffi.dev/) (zero-compilation FFI bindings) — there is no separate engine host. JSON-in/JSON-out C functions used:
+The Argus engine is a Rust-compiled shared library (`andertonengine.dll` / `libandertonengine.so`) that classifies files using ONNX machine-learning models. It is loaded directly into the `ozzy-api` process via [koffi](https://koffi.dev/) (zero-compilation FFI bindings) — there is no separate engine host. JSON-in/JSON-out C functions used:
 
 - `sdk_initialize()` — Load models and initialize the engine
 - `getWorkflowInfo(&json_output)` — Returns the per-rule settings schema (one feature group per file-type family) that the Settings panel renders from
@@ -309,11 +309,11 @@ The engine binding lives in `ozzy-api/engine/index.js`. Per-file-type configurat
 
 ### Concurrency model
 
-Each native engine is initialized **once** at startup (`sdk_initialize` loads the model into memory — multiple GB for the file engine). Scans are then dispatched through koffi's **asynchronous** interface, which runs each `process()` call on a koffi worker thread instead of blocking the Node event loop. A counting semaphore (`ozzy-api/lib/semaphore.js`) caps in-flight scans at `AGATHA_SCAN_THREADS` (default **8**) so the engine is loaded once and served by a bounded pool of concurrent scans — the counting-semaphore generalisation of a single-scan mutex. The URL engine uses the same pattern (`AGATHA_URL_THREADS`).
+Each native engine is initialized **once** at startup (`sdk_initialize` loads the model into memory — multiple GB for the file engine). Scans are then dispatched through koffi's **asynchronous** interface, which runs each `process()` call on a koffi worker thread instead of blocking the Node event loop. A counting semaphore (`ozzy-api/lib/semaphore.js`) caps in-flight scans at `ARGUS_SCAN_THREADS` (default **8**) so the engine is loaded once and served by a bounded pool of concurrent scans — the counting-semaphore generalisation of a single-scan mutex. The URL engine uses the same pattern (`ARGUS_URL_THREADS`).
 
-### Agatha URL / Hyperlink engine
+### Argus URL / Hyperlink engine
 
-A second native engine (`hyperlinkengine.dll` / `libhyperlinkengine.so`, bound in `ozzy-api/url-engine/index.js`) classifies a URL from its string alone — 107 URL features through an ONNX model, no network fetch. Verdicts: Clean (0), Malicious (1), Suspicious (2), Unavailable (-1). Its verdict is shown next to the MetaDefender URL reputation and is passed into the chat context so Athena can explain it.
+A second native engine — Aegis (`aegisengine.dll` / `libaegisengine.so`, bound in `ozzy-api/url-engine/index.js`) — classifies a URL from its string alone — 107 URL features through an ONNX model, no network fetch. Verdicts: Clean (0), Malicious (1), Suspicious (2), Unavailable (-1). Its verdict is shown next to the MetaDefender URL reputation and is passed into the chat context so Athena can explain it.
 
 > **Hyperlink features in the file pipeline (future work):** the file feature
 > extractor can also count/extract hyperlinks from PDF/OOXML, and the URL model
@@ -332,10 +332,10 @@ A second native engine (`hyperlinkengine.dll` / `libhyperlinkengine.so`, bound i
 | POST | `/scan-file` | Yes | Upload file → MetaDefender data_id |
 | GET | `/scan/:hash` | Yes | Poll scan status by data_id |
 | GET | `/scan-url-direct?encodedUrl=` | Yes | MetaDefender URL reputation lookup |
-| POST | `/agatha-scan` | Yes | Upload file → Agatha file-engine verdict |
-| GET | `/agatha-url-scan?url=` | Yes | Agatha URL/hyperlink engine verdict |
-| GET | `/agatha-workflow-info` | Yes | Per-file-type settings schema (drives Settings panel) |
-| GET | `/agatha-config` | Yes | Engine availability & supported file types |
+| POST | `/argus-scan` | Yes | Upload file → Argus file-engine verdict |
+| GET | `/argus-url-scan?url=` | Yes | Argus URL/hyperlink engine verdict |
+| GET | `/argus-workflow-info` | Yes | Per-file-type settings schema (drives Settings panel) |
+| GET | `/argus-config` | Yes | Engine availability & supported file types |
 | GET | `/chat-history` | Yes | Get user's chat history |
 | POST | `/chat-history` | Yes | Save chat session (messages + scan context) |
 | PUT | `/chat-history/:chatId` | Yes | Update an existing chat session |
@@ -344,8 +344,8 @@ A second native engine (`hyperlinkengine.dll` / `libhyperlinkengine.so`, bound i
 | POST | `/scan-history` | Yes | Save scan record |
 | DELETE | `/scan-history` | Yes | Clear all scan history |
 
-> The native Agatha **file** and **URL** engines run in-process inside this same
-> Express server (via koffi) — there is no separate Agatha HTTP host anymore.
+> The native Argus **file** and **URL** engines run in-process inside this same
+> Express server (via koffi) — there is no separate Argus HTTP host anymore.
 
 ### FastAPI Endpoints
 
@@ -369,7 +369,7 @@ Hot-reloads on file changes. Proxy configuration in `vite.config.js`.
 ```bash
 cd ozzy-api && npm run dev
 ```
-Uses nodemon for automatic restarts. The native Agatha file and URL engines are
+Uses nodemon for automatic restarts. The native Argus file and URL engines are
 loaded in-process here — no separate engine server to start.
 
 ### FastAPI (with hot reload)
@@ -395,7 +395,7 @@ This project is licensed under the MIT License.
 ## Acknowledgments
 
 - [OPSWAT MetaDefender](https://www.opswat.com/products/metadefender) for the multi-scanning platform
-- [Agatha Engine](https://github.com/AlinTulbure/agatha-engine) for the ML-based malware detection engine
+- [Argus Engine](https://github.com/AlinTulbure/argus-engine) for the ML-based malware detection engine
 - [OpenAI](https://platform.openai.com/) for the generative AI model
 - [koffi](https://koffi.dev/) for zero-compilation Node.js FFI bindings
 - [Qdrant](https://qdrant.tech/) for vector search

@@ -113,8 +113,8 @@
 }
 
 .scan-tab-button.active {
-  background: #f8f9f9;
-  color: var(--bg);
+  background: var(--accent);
+  color: #fff;
 }
 
 .scan-tab-button .icon-placeholder {

@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import "./UrlForm.css";
 
 const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }) => {
@@ -38,7 +38,7 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }
       <div className={`form-wrapper ${isChatbotOpen ? 'chatbot-open' : ''}`}>
         <div className="hero">
           <p className="hero-sub">
-            Triple A is a security analysis platform built around three engines: AGATHA for file classification, Aegis for URL classification, and Athena for explaining results — all running alongside MetaDefender for a side-by-side comparison.{' '}
+            Triple A is a security analysis platform built around three engines: ARGUS for file classification, Aegis for URL classification, and Athena for explaining results — all running alongside MetaDefender for a side-by-side comparison.{' '}
             <span className="learn-more-link" onClick={() => setShowModal(true)}>
               Learn more...
             </span>
@@ -75,8 +75,8 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }
               </svg>
             </div>
             <div className="trust-no-file-text">
-              {activeTab === 'file' && 'Trust No File'}
-              {activeTab === 'url' && 'Trust No URL'}
+              {activeTab === 'file' && 'Scan a File'}
+              {activeTab === 'url' && 'Scan a URL'}
             </div>
 
             <form className={`url-form ${isScanning ? 'scanning' : ''}`} onSubmit={handleSubmit}>
@@ -116,20 +116,20 @@ const UrlForm = ({ onSubmit, isScanning, isChatbotOpen, activeTab, onTabChange }
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
-            <h2>About Triple A — Agatha, Aegis & Athena</h2>
+            <h2>About Triple A — Argus, Aegis & Athena</h2>
             <div className="modal-body">
               <p>
                 Triple A is a security analysis platform built around three engines:
-                AGATHA for file classification, Aegis for URL classification, and Athena
+                ARGUS for file classification, Aegis for URL classification, and Athena
                 for explaining results — all running alongside MetaDefender for a
                 side-by-side comparison.
               </p>
               <p>
-                <strong>Agatha</strong> is a multi-layer file detection engine that runs
+                <strong>Argus</strong> is a multi-layer file detection engine that runs
                 locally on-device. It combines deterministic signature layers (hash database,
-                byte-pattern and fuzzy matching, IOC reputation) with structural parsing,
-                YARA rules, and XGBoost machine-learning models — one per file family
-                (PE, ELF, Mach-O, PDF, OOXML, Image). The verdict is compared side-by-side
+                byte-pattern and fuzzy matching, IOC reputation) with structural parsing
+                and XGBoost machine-learning models — one per file family
+                (PE and PDF). The verdict is compared side-by-side
                 against MetaDefender's 21 commercial anti-malware engines.
               </p>
               <p>

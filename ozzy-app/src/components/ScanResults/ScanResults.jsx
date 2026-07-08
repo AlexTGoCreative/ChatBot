@@ -9,8 +9,7 @@ const ScanResults = ({
   scanData,
   // sandboxData, // Sandbox feature disabled
   urlData,
-  agathaResult,
-  agathaMode = 'detection',
+  argusResult,
   multiscanningEnabled,
   scanFile,
   scanType, 
@@ -24,7 +23,7 @@ const ScanResults = ({
       fileInfo: getFileInfo(),
       threatsFound,
       totalEngines,
-      agathaResult: agathaResult || null,
+      argusResult: argusResult || null,
       engineResults,
       scanData: scanType === 'file' ? scanData : null,
       urlData: scanType === 'url' ? urlData : null,
@@ -100,6 +99,13 @@ const ScanResults = ({
     return null;
   };
 
+  // MetaDefender's AI engine returns generic/noisy threat names (e.g. "Win/malicious_99")
+  // rather than a real malware family, so we collapse any detection to a plain "Malicious" label.
+  const isPredictiveAIEngine = (name) => {
+    const normalized = (name || '').toLowerCase();
+    return normalized.includes('predictive') && normalized.includes('ai');
+  };
+
   const getScanEnginesResults = () => {
     if (scanType === 'url' && urlData?.lookup_results?.sources) {
       // Assessments that mean "no threat". Anything outside this set (e.g.
@@ -128,10 +134,12 @@ const ScanResults = ({
       if (scanData.scan_results.scan_details) {
         return Object.entries(scanData.scan_results.scan_details).map(([engineName, result]) => {
           const hasThreat = result.threat_found && result.threat_found.trim() !== '';
-          
+
           return {
             name: engineName,
-            verdict: result.threat_found || 'No Threats Detected',
+            verdict: hasThreat && isPredictiveAIEngine(engineName)
+              ? 'Malicious'
+              : (result.threat_found || 'No Threats Detected'),
             threat: hasThreat,
             scanTime: result.scan_time,
             defTime: result.def_time,
@@ -174,10 +182,14 @@ const ScanResults = ({
             engineName = engineNames[engineKey] || `Engine ${engineKey}`;
           }
           
+          const hasThreat = result.threat_found && result.threat_found.toLowerCase() !== 'no threat detected';
+
           return {
             name: engineName,
-            verdict: result.threat_found || 'No Threats Detected',
-            threat: result.threat_found && result.threat_found.toLowerCase() !== 'no threat detected',
+            verdict: hasThreat && isPredictiveAIEngine(engineName)
+              ? 'Malicious'
+              : (result.threat_found || 'No Threats Detected'),
+            threat: hasThreat,
             scanTime: result.scan_time || result.def_time,
             defTime: result.def_time,
             scanResult: result.scan_result_i,
@@ -212,44 +224,39 @@ const ScanResults = ({
 
   const fileInfo = getFileInfo();
 
-  // Multiscanning / URL-reputation engines only. Agatha is tracked separately
+  // Multiscanning / URL-reputation engines only. Argus is tracked separately
   // so each status card reflects exactly its own source.
   const multiscanEngines = getScanEnginesResults();
   const multiscanThreats = multiscanEngines.filter(engine => engine.threat).length;
 
-  // Build the Agatha entry separately, then prepend it to the combined table.
-  let agathaEntry = null;
-  if (agathaResult && agathaResult.verdict !== undefined) {
-    const fileModeUsed = agathaResult.mode || agathaMode;
-    const fileUncertain = fileModeUsed === 'deflection' && agathaResult.verdict === 2;
+  // Build the Argus entry separately, then prepend it to the combined table.
+  let argusEntry = null;
+  if (argusResult && argusResult.verdict !== undefined) {
     const verdictMap = {
       0: 'No Threats Detected',
       1: 'Infected',
-      2: fileUncertain ? 'Unknown — forward to multiscanning' : 'Unknown',
+      2: 'Unknown',
       3: 'Unsupported File Type',
       '-1': 'Unavailable',
     };
-    agathaEntry = {
-      // Always display as "Agatha" regardless of any legacy engine label
-      // returned by the API or stored in history.
-      name: 'Agatha',
-      verdict: agathaResult.verdict === 1
-        ? agathaResult.threat_name || 'Malicious'
-        : agathaResult.error || verdictMap[agathaResult.verdict] || 'No Threats Detected',
-      // Deflection's Unknown band is NOT a threat — it forwards to multiscanning.
-      threat: agathaResult.verdict === 1,
-      scanTime: agathaResult.scan_time,
-      defTime: agathaResult.scan_time,
-      isAgatha: true,
+    argusEntry = {
+      name: 'Argus',
+      verdict: argusResult.verdict === 1
+        ? argusResult.threat_name || 'Malicious'
+        : argusResult.error || verdictMap[argusResult.verdict] || 'No Threats Detected',
+      threat: argusResult.verdict === 1,
+      scanTime: argusResult.scan_time,
+      defTime: argusResult.scan_time,
+      isArgus: true,
     };
   }
 
-  // Agatha URL (Hyperlink) verdict travels merged into urlData under `.agatha`.
+  // Argus URL (Hyperlink) verdict travels merged into urlData under `.agatha`.
   // Its verdict codes differ from the file engine: 0 clean · 1 malicious ·
   // 2 suspicious · -1 unavailable (no "unsupported" case for URLs).
-  const urlAgatha = scanType === 'url' ? (urlData?.agatha || null) : null;
-  let urlAgathaEntry = null;
-  if (urlAgatha && urlAgatha.verdict !== undefined) {
+  const urlArgus = scanType === 'url' ? (urlData?.agatha || null) : null;
+  let urlArgusEntry = null;
+  if (urlArgus && urlArgus.verdict !== undefined) {
     // The URL engine is mode-agnostic and never echoes a file-scan mode. Its
     // verdict 2 ("Suspicious") is its own amber state — NOT a red threat and
     // NOT counted in threatsFound — regardless of the file-scan operating mode.
@@ -259,35 +266,35 @@ const ScanResults = ({
       2: 'Suspicious',
       '-1': 'Unavailable',
     };
-    urlAgathaEntry = {
+    urlArgusEntry = {
       name: 'Aegis',
-      verdict: urlAgatha.error
+      verdict: urlArgus.error
         ? 'Engine Unavailable'
-        : urlAgatha.verdict === 1
-          ? (urlAgatha.threat_name || 'Malicious')
-          : urlVerdictMap[urlAgatha.verdict] || 'No Threats Detected',
+        : urlArgus.verdict === 1
+          ? (urlArgus.threat_name || 'Malicious')
+          : urlVerdictMap[urlArgus.verdict] || 'No Threats Detected',
       // Only verdict 1 (malicious) is a red threat. Verdict 2 (suspicious) is an
       // amber advisory state and is never counted as a threat.
-      threat: urlAgatha.verdict === 1,
-      scanTime: urlAgatha.scan_time,
-      defTime: urlAgatha.scan_time,
-      isAgatha: true,
+      threat: urlArgus.verdict === 1,
+      scanTime: urlArgus.scan_time,
+      defTime: urlArgus.scan_time,
+      isArgus: true,
     };
   }
 
   // Hyperlinks the file engine extracted + scored during deepscan (PDF/OOXML).
   // The scores live in the engine diagnostics log, so we parse them from there
   // (same source the Logs panel uses) rather than a dedicated API field.
-  const agathaLinks = scanType === 'file' ? parseHyperlinks(agathaResult?.engine_logs) : [];
+  const argusLinks = scanType === 'file' ? parseHyperlinks(argusResult?.engine_logs) : [];
 
-  // Combined engine list (Agatha first) used by the Engine/Sources table and
+  // Combined engine list (Argus first) used by the Engine/Sources table and
   // its overall verdict — so a detection from *any* engine is reflected.
-  const leadEntry = scanType === 'url' ? urlAgathaEntry : agathaEntry;
+  const leadEntry = scanType === 'url' ? urlArgusEntry : argusEntry;
   const engineResults = leadEntry ? [leadEntry, ...multiscanEngines] : multiscanEngines;
   const totalEngines = engineResults.length;
   const threatsFound = engineResults.filter(engine => engine.threat).length;
 
-  if (!fileInfo && !agathaResult && !urlAgatha) {
+  if (!fileInfo && !argusResult && !urlArgus) {
     return (
       <div className="scan-results">
         <div className="scan-results-error">
@@ -359,57 +366,42 @@ const ScanResults = ({
             </div>
           )}
 
-          {scanType === 'url' && urlAgatha && (() => {
-            // The URL engine is mode-agnostic. Verdict 2 ("Suspicious") is its
-            // own amber state regardless of the file-scan operating mode — never
-            // a red threat. Only verdict 1 (malicious) is red.
-            const urlSuspicious = urlAgatha.verdict === 2;
-            const urlTone = urlAgatha.verdict === 0
+          {scanType === 'url' && urlArgus && (() => {
+            const urlSuspicious = urlArgus.verdict === 2;
+            const urlTone = urlArgus.verdict === 0
               ? 'clean'
-              : urlAgatha.verdict === 1
+              : urlArgus.verdict === 1
                 ? 'threat'
-                : urlSuspicious
-                  ? 'uncertain'
-                  : 'neutral';
+                : 'neutral';
             return (
-            <div className={`status-card agatha ${urlTone}`}>
+            <div className={`status-card argus ${urlTone}`}>
               <div className="status-icon">
                 <span className="icon">⚔️</span>
               </div>
               <div className="status-content">
-                <div className="status-card-titlerow">
-                  <h3>Aegis</h3>
-                </div>
+                <h3>Aegis</h3>
                 <p className={
-                  urlAgatha.verdict === 0
+                  urlArgus.verdict === 0
                     ? 'status-clean'
-                    : urlAgatha.verdict === 1
+                    : urlArgus.verdict === 1
                       ? 'status-threat'
-                      : urlSuspicious
-                        ? 'status-uncertain'
-                        : 'status-neutral'
+                      : 'status-neutral'
                 }>
-                  {urlAgatha.error
+                  {urlArgus.error
                     ? 'Engine Unavailable'
-                    : urlAgatha.verdict === 0
+                    : urlArgus.verdict === 0
                       ? 'No Threats Detected'
-                      : urlAgatha.verdict === 1
-                        ? (urlAgatha.threat_name || 'Malicious')
+                      : urlArgus.verdict === 1
+                        ? (urlArgus.threat_name || 'Malicious')
                         : urlSuspicious
                           ? 'Suspicious'
                           : 'Unknown'
                   }
                 </p>
-                {urlAgatha.malicious_probability != null && !urlAgatha.error && (
-                  urlSuspicious ? (
-                    <p className="agatha-probability">
-                      Malicious probability: {urlAgatha.malicious_probability.toFixed(1)}%
-                    </p>
-                  ) : (
-                    <p className="agatha-probability">
-                      Confidence: {urlAgatha.malicious_probability.toFixed(1)}% malicious
-                    </p>
-                  )
+                {urlArgus.malicious_probability != null && !urlArgus.error && (
+                  <p className="argus-probability">
+                    Confidence: {urlArgus.malicious_probability.toFixed(1)}% malicious
+                  </p>
                 )}
               </div>
             </div>
@@ -430,72 +422,42 @@ const ScanResults = ({
             </div>
           )}
 
-          {scanType === 'file' && agathaResult && (() => {
-            // Which regime produced this verdict. The API echoes it back as
-            // `agathaResult.mode`; fall back to the user's selected mode.
-            const fileMode = agathaResult.mode || agathaMode;
-            // In Deflection mode, verdict 2 (Unknown) is a first-class state:
-            // "uncertain — forward to multiscanning". Render it amber/neutral,
-            // never red and never "blocked". In Detection mode only clean (0)
-            // and infected (1) occur.
-            const isUncertain = fileMode === 'deflection' && agathaResult.verdict === 2;
-            const cardTone = agathaResult.verdict === 0
+          {scanType === 'file' && argusResult && (() => {
+            const cardTone = argusResult.verdict === 0
               ? 'clean'
-              : agathaResult.verdict === 1
+              : argusResult.verdict === 1
                 ? 'threat'
-                : isUncertain
-                  ? 'uncertain'
-                  : 'neutral';
+                : 'neutral';
             return (
-            <div className={`status-card agatha ${cardTone}`}>
+            <div className={`status-card argus ${cardTone}`}>
               <div className="status-icon">
                 <span className="icon">⚔️</span>
               </div>
               <div className="status-content">
-                <div className="status-card-titlerow">
-                  <h3>Agatha</h3>
-                  <span className={`mode-badge mode-${fileMode}`}>
-                    Mode: {fileMode === 'deflection' ? 'Deflection' : 'Detection'}
-                  </span>
-                </div>
+                <h3>Argus</h3>
                 <p className={
-                  agathaResult.verdict === 0
+                  argusResult.verdict === 0
                     ? 'status-clean'
-                    : agathaResult.verdict === 1
+                    : argusResult.verdict === 1
                       ? 'status-threat'
-                      : isUncertain
-                        ? 'status-uncertain'
-                        : 'status-neutral'
+                      : 'status-neutral'
                 }>
-                  {agathaResult.error
+                  {argusResult.error
                     ? 'Engine Unavailable'
-                    : agathaResult.verdict === 0
+                    : argusResult.verdict === 0
                       ? 'No Threats Detected'
-                      : agathaResult.verdict === 1
-                        ? (agathaResult.threat_name || 'Malicious')
-                        : agathaResult.verdict === 3
+                      : argusResult.verdict === 1
+                        ? (argusResult.threat_name || 'Malicious')
+                        : argusResult.verdict === 3
                           ? 'Unsupported File Type'
-                          : isUncertain
-                            ? 'Unknown — forward to multiscanning'
-                            : 'Unknown'
+                          : 'Unknown'
                   }
                 </p>
-                {isUncertain && (
-                  <p className="agatha-probability">
-                    Below the deflection confidence band — escalate to a heavier multiscanning platform.
+                {argusResult.malicious_probability != null && !argusResult.error &&
+                  argusResult.verdict !== 3 && (
+                  <p className="argus-probability">
+                    Confidence: {argusResult.malicious_probability.toFixed(1)}% malicious
                   </p>
-                )}
-                {agathaResult.malicious_probability != null && !agathaResult.error &&
-                  agathaResult.verdict !== 3 && (
-                  isUncertain ? (
-                    <p className="agatha-probability">
-                      Malicious probability: {agathaResult.malicious_probability.toFixed(1)}% (below decision threshold — forwarded)
-                    </p>
-                  ) : (
-                    <p className="agatha-probability">
-                      Confidence: {agathaResult.malicious_probability.toFixed(1)}% malicious
-                    </p>
-                  )
                 )}
               </div>
             </div>
@@ -506,23 +468,23 @@ const ScanResults = ({
 
         {/* Extracted links (PDF/OOXML deepscan): URLs found in the document and
             the URL model's verdict/score, parsed from the engine diagnostics. */}
-        {scanType === 'file' && agathaLinks.length > 0 && (
-          <div className="agatha-links-section">
+        {scanType === 'file' && argusLinks.length > 0 && (
+          <div className="argus-links-section">
             <div className="section-header">
               <h2>Extracted Links</h2>
-              <span className="agatha-links-sub">{agathaLinks.length} URL{agathaLinks.length > 1 ? 's' : ''} scored by the Aegis URL model (deepscan)</span>
+              <span className="argus-links-sub">{argusLinks.length} URL{argusLinks.length > 1 ? 's' : ''} scored by the Aegis URL model</span>
             </div>
-            <div className="agatha-links-list">
-              {agathaLinks.map((link, i) => {
+            <div className="argus-links-list">
+              {argusLinks.map((link, i) => {
                 const label = URL_VERDICT[link.verdict] || link.verdict || '?';
                 const cls = (label || '').toLowerCase();
                 const malPct = link.malicious != null ? (parseFloat(link.malicious) * 100) : null;
                 return (
-                  <div className="agatha-link-row" key={i}>
-                    <span className={`agatha-link-badge verdict-${cls}`}>{label}</span>
-                    <span className="agatha-link-url" title={link.url || ''}>{link.url || '(no url)'}</span>
+                  <div className="argus-link-row" key={i}>
+                    <span className={`argus-link-badge verdict-${cls}`}>{label}</span>
+                    <span className="argus-link-url" title={link.url || ''}>{link.url || '(no url)'}</span>
                     {malPct != null && !Number.isNaN(malPct) && (
-                      <span className="agatha-link-score">{malPct.toFixed(1)}% malicious</span>
+                      <span className="argus-link-score">{malPct.toFixed(1)}% malicious</span>
                     )}
                   </div>
                 );
@@ -562,9 +524,9 @@ const ScanResults = ({
                 </div>
                 <div className="table-body">
                   {engineResults.map((engine, index) => (
-                    <div key={index} className={`engine-row ${engine.isAgatha ? 'agatha-row ' : ''}${engine.threat ? 'threat' : 'clean'}`}>
+                    <div key={index} className={`engine-row ${engine.isArgus ? 'argus-row ' : ''}${engine.threat ? 'threat' : 'clean'}`}>
                       <div className="col-engine">
-                        {engine.isAgatha && <span className="agatha-badge">AI</span>}
+                        {engine.isArgus && <span className="argus-badge">AI</span>}
                         <span className="engine-name">
                           {engine.name}
                         </span>
@@ -591,52 +553,52 @@ const ScanResults = ({
           </div>
 
           <div className="right-panel">
-            {/* URL panels (Agatha assessment + WHOIS) or File Overview */}
+            {/* URL panels (Argus assessment + WHOIS) or File Overview */}
             {scanType === 'url' ? (
               <>
-              {urlAgatha && (
+              {urlArgus && (
                 <div className="file-overview-section">
                   <h2>Aegis URL Assessment</h2>
 
                   <div className="overview-grid">
                     <div className="overview-item full-width">
                       <span className="label">URL</span>
-                      <span className="value">{urlData?.address || urlAgatha.url}</span>
+                      <span className="value">{urlData?.address || urlArgus.url}</span>
                     </div>
 
                     <div className="overview-item">
                       <span className="label">Verdict</span>
-                      <span className={`value ${urlAgatha.verdict === 1 ? 'threat' : ''}`}>
-                        {urlAgatha.error
+                      <span className={`value ${urlArgus.verdict === 1 ? 'threat' : ''}`}>
+                        {urlArgus.error
                           ? 'Unavailable'
-                          : urlAgatha.verdict === 0
+                          : urlArgus.verdict === 0
                             ? 'Clean'
-                            : urlAgatha.verdict === 1
+                            : urlArgus.verdict === 1
                               ? 'Malicious'
-                              : urlAgatha.verdict === 2
+                              : urlArgus.verdict === 2
                                 ? 'Suspicious'
                                 : 'Unknown'}
                       </span>
                     </div>
 
-                    {urlAgatha.malicious_probability != null && !urlAgatha.error && (
+                    {urlArgus.malicious_probability != null && !urlArgus.error && (
                       <div className="overview-item">
                         <span className="label">Malicious Confidence</span>
-                        <span className="value">{urlAgatha.malicious_probability.toFixed(1)}%</span>
+                        <span className="value">{urlArgus.malicious_probability.toFixed(1)}%</span>
                       </div>
                     )}
 
-                    {urlAgatha.benign_probability != null && !urlAgatha.error && (
+                    {urlArgus.benign_probability != null && !urlArgus.error && (
                       <div className="overview-item">
                         <span className="label">Benign Confidence</span>
-                        <span className="value">{urlAgatha.benign_probability.toFixed(1)}%</span>
+                        <span className="value">{urlArgus.benign_probability.toFixed(1)}%</span>
                       </div>
                     )}
 
-                    {urlAgatha.scan_time && (
+                    {urlArgus.scan_time && (
                       <div className="overview-item">
                         <span className="label">Scan Time</span>
-                        <span className="value">{formatDate(urlAgatha.scan_time)}</span>
+                        <span className="value">{formatDate(urlArgus.scan_time)}</span>
                       </div>
                     )}
                   </div>
@@ -875,7 +837,7 @@ const ScanResults = ({
               </div>
             )}
 
-            {/* Sandbox Analysis — feature disabled, only multiscanning + Agatha are active.
+            {/* Sandbox Analysis — feature disabled, only multiscanning + Argus are active.
             {sandboxData && (
               <div className="sandbox-section">
                 <h2>Sandbox Analysis</h2>
@@ -1027,7 +989,7 @@ const ScanResults = ({
                 {(() => {
                   const scannedAt = scanType === 'url'
                     ? urlData?.lookup_results?.start_time
-                    : (scanData?.scan_results?.scan_time || agathaResult?.scan_time);
+                    : (scanData?.scan_results?.scan_time || argusResult?.scan_time);
                   const when = scannedAt ? formatDate(scannedAt) : null;
                   return when && when !== 'N/A'
                     ? `Last scanned on ${when}`

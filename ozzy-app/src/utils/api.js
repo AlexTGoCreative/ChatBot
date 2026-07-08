@@ -119,7 +119,7 @@ export const api = {
     }
   },
 
-  // Sandbox feature disabled — only multiscanning + Agatha are active.
+  // Sandbox feature disabled — only multiscanning + Argus are active.
   // getSandboxData: async (sha1) => {
   //   try {
   //     const response = await axios.get(`${API_URL}/sandbox/${sha1}`, {
@@ -142,16 +142,16 @@ export const api = {
     }
   },
 
-  // Agatha URL (Hyperlink) engine — independent ONNX verdict for a single URL,
-  // the URL counterpart to the file Agatha engine.
-  getAgathaUrlScan: async (url) => {
+  // Argus URL (Hyperlink) engine — independent ONNX verdict for a single URL,
+  // the URL counterpart to the file Argus engine.
+  getArgusUrlScan: async (url) => {
     try {
       const response = await axios.get(`${API_URL}/agatha-url-scan?url=${encodeURIComponent(url)}`, {
         headers: getHeaders()
       });
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch Agatha URL scan data');
+      throw new Error(error.response?.data?.message || 'Failed to fetch Argus URL scan data');
     }
   }
 };

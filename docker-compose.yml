@@ -2,7 +2,7 @@
 #
 # Services:
 #   ozzy-app   nginx serving the React SPA + reverse-proxy → :8080 (open this)
-#   ozzy-api   Express API + native Agatha file/URL engines (koffi)  :5000
+#   ozzy-api   Express API + native Argus file/URL engines (koffi)  :5000
 #   ozzy-ai    FastAPI RAG chat (OpenAI + BGE-M3)                     :7860
 #   mongo      users / scan & chat history
 #   qdrant     vector store for the RAG knowledge base
@@ -51,12 +51,12 @@ services:
       METADEFENDER_API_KEY: ${METADEFENDER_API_KEY}
       JWT_SECRET: ${JWT_SECRET}
       # Engine loaded once; up to this many concurrent scans per engine.
-      AGATHA_SCAN_THREADS: ${AGATHA_SCAN_THREADS:-8}
-      AGATHA_URL_THREADS: ${AGATHA_URL_THREADS:-8}
+      ARGUS_SCAN_THREADS: ${ARGUS_SCAN_THREADS:-8}
+      ARGUS_URL_THREADS: ${ARGUS_URL_THREADS:-8}
       # File-engine diagnostics level surfaced in the UI "Logs" panel. The API
       # defaults to "debug" (full feature vector + scored deepscan URLs); set to
       # "info" to quiet it.
-      AGATHA_LOG_LEVEL: ${AGATHA_LOG_LEVEL:-debug}
+      ARGUS_LOG_LEVEL: ${ARGUS_LOG_LEVEL:-debug}
     depends_on:
       mongo:
         condition: service_healthy
