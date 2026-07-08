@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 import './ScanResults.css';
-import Chatbot from '../ChatBot/ChatBot';
+import { parseHyperlinks, URL_VERDICT } from '../../utils/engineLogs';
+// NOTE: The ChatBot is rendered once at the App level (see App.jsx) so its
+// conversation persists across the main page and this results page. Do not
+// render a second instance here — that would reset the chat on navigation.
 
-const ScanResults = ({ 
-  scanData, 
-  sandboxData, 
-  urlData, 
+const ScanResults = ({
+  scanData,
+  // sandboxData, // Sandbox feature disabled
+  urlData,
+  argusResult,
+  multiscanningEnabled,
+  scanFile,
   scanType, 
   onNewScan,
   user 
@@ -15,11 +21,13 @@ const ScanResults = ({
       scanType,
       timestamp: new Date().toISOString(),
       fileInfo: getFileInfo(),
-      threatScore: getThreatScore(),
-      engineResults: getScanEnginesResults(),
+      threatsFound,
+      totalEngines,
+      argusResult: argusResult || null,
+      engineResults,
       scanData: scanType === 'file' ? scanData : null,
       urlData: scanType === 'url' ? urlData : null,
-      sandboxData
+      // sandboxData // Sandbox feature disabled
     };
 
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -71,53 +79,54 @@ const ScanResults = ({
         malwareType: scanData.malware_type
       };
     }
+
+    // Fallback: populate from the raw File object when multiscanning is off
+    if (scanFile) {
+      const fileName = scanFile.name || 'Unknown';
+      const ext = fileName.includes('.') ? fileName.split('.').pop() : 'unknown';
+      return {
+        name: fileName,
+        type: scanFile.type || 'Unknown',
+        size: scanFile.size,
+        extension: ext,
+        category: null,
+        sha256: null,
+        sha1: null,
+        md5: null,
+      };
+    }
     
     return null;
   };
 
-  const getThreatScore = () => {
-    if (scanType === 'url' && urlData?.lookup_results) {
-      return urlData.lookup_results.detected_by || 0;
-    }
-    
-    if (scanData?.scan_results) {
-      // Handle new file scan format
-      if (scanData.scan_results.scan_details) {
-        const engines = Object.values(scanData.scan_results.scan_details);
-        const threatsDetected = engines.filter(engine => 
-          engine.threat_found && engine.threat_found.trim() !== ''
-        ).length;
-        
-        return Math.round((threatsDetected / engines.length) * 100);
-      }
-      
-      // Handle legacy format
-      if (scanData.scan_results.scan_all_result_a) {
-        const engines = Object.values(scanData.scan_results.scan_all_result_a);
-        const threatsDetected = engines.filter(engine => 
-          engine.threat_found && engine.threat_found.toLowerCase() !== 'no threat detected'
-        ).length;
-        
-        return Math.round((threatsDetected / engines.length) * 100);
-      }
-    }
-    
-    return 0;
+  // MetaDefender's AI engine returns generic/noisy threat names (e.g. "Win/malicious_99")
+  // rather than a real malware family, so we collapse any detection to a plain "Malicious" label.
+  const isPredictiveAIEngine = (name) => {
+    const normalized = (name || '').toLowerCase();
+    return normalized.includes('predictive') && normalized.includes('ai');
   };
 
   const getScanEnginesResults = () => {
     if (scanType === 'url' && urlData?.lookup_results?.sources) {
+      // Assessments that mean "no threat". Anything outside this set (e.g.
+      // malicious, phishing, suspicious) is treated as a detection. Only
+      // flagging non-safe assessments avoids miscounting clean verdicts like
+      // "benign" or "no_threat" as threats.
+      const SAFE_ASSESSMENTS = ['trustworthy', 'likely_trustworthy', 'benign', 'no_threat', 'clean'];
       return urlData.lookup_results.sources
         .filter(source => source.status !== 5) // Filter out sources with status 5 (not available)
-        .map(source => ({
-          name: source.provider,
-          verdict: source.assessment || 'Unknown',
-          threat: source.assessment && source.assessment.toLowerCase() !== 'trustworthy',
-          scanTime: source.update_time,
-          defTime: source.detect_time,
-          category: source.category,
-          status: source.status
-        }));
+        .map(source => {
+          const assessment = (source.assessment || '').toLowerCase();
+          return {
+            name: source.provider,
+            verdict: source.assessment || 'Unknown',
+            threat: !!assessment && !SAFE_ASSESSMENTS.includes(assessment),
+            scanTime: source.update_time,
+            defTime: source.detect_time,
+            category: source.category,
+            status: source.status
+          };
+        });
     }
     
     if (scanData?.scan_results) {
@@ -125,10 +134,12 @@ const ScanResults = ({
       if (scanData.scan_results.scan_details) {
         return Object.entries(scanData.scan_results.scan_details).map(([engineName, result]) => {
           const hasThreat = result.threat_found && result.threat_found.trim() !== '';
-          
+
           return {
             name: engineName,
-            verdict: result.threat_found || 'No Threats Detected',
+            verdict: hasThreat && isPredictiveAIEngine(engineName)
+              ? 'Malicious'
+              : (result.threat_found || 'No Threats Detected'),
             threat: hasThreat,
             scanTime: result.scan_time,
             defTime: result.def_time,
@@ -171,10 +182,14 @@ const ScanResults = ({
             engineName = engineNames[engineKey] || `Engine ${engineKey}`;
           }
           
+          const hasThreat = result.threat_found && result.threat_found.toLowerCase() !== 'no threat detected';
+
           return {
             name: engineName,
-            verdict: result.threat_found || 'No Threats Detected',
-            threat: result.threat_found && result.threat_found.toLowerCase() !== 'no threat detected',
+            verdict: hasThreat && isPredictiveAIEngine(engineName)
+              ? 'Malicious'
+              : (result.threat_found || 'No Threats Detected'),
+            threat: hasThreat,
             scanTime: result.scan_time || result.def_time,
             defTime: result.def_time,
             scanResult: result.scan_result_i,
@@ -195,17 +210,91 @@ const ScanResults = ({
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
+    if (!dateString || dateString === 0 || dateString === '0') return 'N/A';
+    // Handle Unix timestamps (seconds) — if it's a number less than a reasonable ms timestamp
+    const val = typeof dateString === 'string' ? Date.parse(dateString) : dateString;
+    if (typeof dateString === 'number' && dateString < 1e12) {
+      // Unix seconds → convert to ms
+      const d = new Date(dateString * 1000);
+      return d.getFullYear() <= 1970 ? 'N/A' : d.toLocaleString();
+    }
+    const d = new Date(dateString);
+    return isNaN(d.getTime()) || d.getFullYear() <= 1970 ? 'N/A' : d.toLocaleString();
   };
 
   const fileInfo = getFileInfo();
-  const threatScore = getThreatScore();
-  const engineResults = getScanEnginesResults();
+
+  // Multiscanning / URL-reputation engines only. Argus is tracked separately
+  // so each status card reflects exactly its own source.
+  const multiscanEngines = getScanEnginesResults();
+  const multiscanThreats = multiscanEngines.filter(engine => engine.threat).length;
+
+  // Build the Argus entry separately, then prepend it to the combined table.
+  let argusEntry = null;
+  if (argusResult && argusResult.verdict !== undefined) {
+    const verdictMap = {
+      0: 'No Threats Detected',
+      1: 'Infected',
+      2: 'Unknown',
+      3: 'Unsupported File Type',
+      '-1': 'Unavailable',
+    };
+    argusEntry = {
+      name: 'Argus',
+      verdict: argusResult.verdict === 1
+        ? argusResult.threat_name || 'Malicious'
+        : argusResult.error || verdictMap[argusResult.verdict] || 'No Threats Detected',
+      threat: argusResult.verdict === 1,
+      scanTime: argusResult.scan_time,
+      defTime: argusResult.scan_time,
+      isArgus: true,
+    };
+  }
+
+  // Argus URL (Hyperlink) verdict travels merged into urlData under `.agatha`.
+  // Its verdict codes differ from the file engine: 0 clean · 1 malicious ·
+  // 2 suspicious · -1 unavailable (no "unsupported" case for URLs).
+  const urlArgus = scanType === 'url' ? (urlData?.agatha || null) : null;
+  let urlArgusEntry = null;
+  if (urlArgus && urlArgus.verdict !== undefined) {
+    // The URL engine is mode-agnostic and never echoes a file-scan mode. Its
+    // verdict 2 ("Suspicious") is its own amber state — NOT a red threat and
+    // NOT counted in threatsFound — regardless of the file-scan operating mode.
+    const urlVerdictMap = {
+      0: 'No Threats Detected',
+      1: 'Malicious',
+      2: 'Suspicious',
+      '-1': 'Unavailable',
+    };
+    urlArgusEntry = {
+      name: 'Aegis',
+      verdict: urlArgus.error
+        ? 'Engine Unavailable'
+        : urlArgus.verdict === 1
+          ? (urlArgus.threat_name || 'Malicious')
+          : urlVerdictMap[urlArgus.verdict] || 'No Threats Detected',
+      // Only verdict 1 (malicious) is a red threat. Verdict 2 (suspicious) is an
+      // amber advisory state and is never counted as a threat.
+      threat: urlArgus.verdict === 1,
+      scanTime: urlArgus.scan_time,
+      defTime: urlArgus.scan_time,
+      isArgus: true,
+    };
+  }
+
+  // Hyperlinks the file engine extracted + scored during deepscan (PDF/OOXML).
+  // The scores live in the engine diagnostics log, so we parse them from there
+  // (same source the Logs panel uses) rather than a dedicated API field.
+  const argusLinks = scanType === 'file' ? parseHyperlinks(argusResult?.engine_logs) : [];
+
+  // Combined engine list (Argus first) used by the Engine/Sources table and
+  // its overall verdict — so a detection from *any* engine is reflected.
+  const leadEntry = scanType === 'url' ? urlArgusEntry : argusEntry;
+  const engineResults = leadEntry ? [leadEntry, ...multiscanEngines] : multiscanEngines;
   const totalEngines = engineResults.length;
   const threatsFound = engineResults.filter(engine => engine.threat).length;
 
-  if (!fileInfo) {
+  if (!fileInfo && !argusResult && !urlArgus) {
     return (
       <div className="scan-results">
         <div className="scan-results-error">
@@ -225,7 +314,7 @@ const ScanResults = ({
           <div className="file-header">
             <div className="file-icon">
               <span className="file-extension">
-                {scanType === 'url' ? '🔗' : fileInfo?.extension?.toUpperCase() || 'FILE'}
+                {scanType === 'url' ? '🔗' : (fileInfo?.extension?.toUpperCase() || 'FILE').slice(0, 4)}
               </span>
             </div>
             <div className="file-details">
@@ -258,20 +347,66 @@ const ScanResults = ({
       <div className="results-container">
         {/* Status Cards */}
         <div className="status-cards">
-          <div className={`status-card multiscanning ${threatScore === 0 ? 'clean' : 'threat'}`}>
-            <div className="status-icon">
-              <span className="icon">🛡️</span>
+          {multiscanningEnabled && (
+            <div className={`status-card multiscanning ${multiscanThreats === 0 ? 'clean' : 'threat'}`}>
+              <div className="status-icon">
+                <span className="icon">🛡️</span>
+              </div>
+              <div className="status-content">
+                <h3>{scanType === 'url' ? 'URL Reputation' : 'Multiscanning'}</h3>
+                <p className={multiscanThreats === 0 ? 'status-clean' : 'status-threat'}>
+                  {multiscanThreats === 0
+                    ? 'No Threats Detected'
+                    : `${multiscanThreats} ${multiscanThreats === 1 ? 'Threat' : 'Threats'} Found`}
+                </p>
+                {fileInfo?.threatName && (
+                  <p className="threat-name">{fileInfo.threatName}</p>
+                )}
+              </div>
             </div>
-            <div className="status-content">
-              <h3>{scanType === 'url' ? 'URL Reputation' : 'Multiscanning'}</h3>
-              <p className={threatScore === 0 ? 'status-clean' : 'status-threat'}>
-                {threatScore === 0 ? 'No Threats Detected' : `${threatsFound} Threats Found`}
-              </p>
-              {fileInfo?.threatName && (
-                <p className="threat-name">{fileInfo.threatName}</p>
-              )}
+          )}
+
+          {scanType === 'url' && urlArgus && (() => {
+            const urlSuspicious = urlArgus.verdict === 2;
+            const urlTone = urlArgus.verdict === 0
+              ? 'clean'
+              : urlArgus.verdict === 1
+                ? 'threat'
+                : 'neutral';
+            return (
+            <div className={`status-card argus ${urlTone}`}>
+              <div className="status-icon">
+                <span className="icon">⚔️</span>
+              </div>
+              <div className="status-content">
+                <h3>Aegis</h3>
+                <p className={
+                  urlArgus.verdict === 0
+                    ? 'status-clean'
+                    : urlArgus.verdict === 1
+                      ? 'status-threat'
+                      : 'status-neutral'
+                }>
+                  {urlArgus.error
+                    ? 'Engine Unavailable'
+                    : urlArgus.verdict === 0
+                      ? 'No Threats Detected'
+                      : urlArgus.verdict === 1
+                        ? (urlArgus.threat_name || 'Malicious')
+                        : urlSuspicious
+                          ? 'Suspicious'
+                          : 'Unknown'
+                  }
+                </p>
+                {urlArgus.malicious_probability != null && !urlArgus.error && (
+                  <p className="argus-probability">
+                    Confidence: {urlArgus.malicious_probability.toFixed(1)}% malicious
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+            );
+          })()}
 
           {scanType === 'url' && urlData?.whois && (
             <div className="status-card whois">
@@ -287,71 +422,98 @@ const ScanResults = ({
             </div>
           )}
 
-          {scanType === 'file' && (
-            <>
-              <div className="status-card sandbox">
-                <div className="status-icon">
-                  <span className="icon">🔬</span>
-                </div>
-                <div className="status-content">
-                  <h3>Adaptive Sandbox</h3>
-                  <p className="status-neutral">
-                    {sandboxData ? 'Analysis Available' : 'No Results Available'}
+          {scanType === 'file' && argusResult && (() => {
+            const cardTone = argusResult.verdict === 0
+              ? 'clean'
+              : argusResult.verdict === 1
+                ? 'threat'
+                : 'neutral';
+            return (
+            <div className={`status-card argus ${cardTone}`}>
+              <div className="status-icon">
+                <span className="icon">⚔️</span>
+              </div>
+              <div className="status-content">
+                <h3>Argus</h3>
+                <p className={
+                  argusResult.verdict === 0
+                    ? 'status-clean'
+                    : argusResult.verdict === 1
+                      ? 'status-threat'
+                      : 'status-neutral'
+                }>
+                  {argusResult.error
+                    ? 'Engine Unavailable'
+                    : argusResult.verdict === 0
+                      ? 'No Threats Detected'
+                      : argusResult.verdict === 1
+                        ? (argusResult.threat_name || 'Malicious')
+                        : argusResult.verdict === 3
+                          ? 'Unsupported File Type'
+                          : 'Unknown'
+                  }
+                </p>
+                {argusResult.malicious_probability != null && !argusResult.error &&
+                  argusResult.verdict !== 3 && (
+                  <p className="argus-probability">
+                    Confidence: {argusResult.malicious_probability.toFixed(1)}% malicious
                   </p>
-                </div>
+                )}
               </div>
+            </div>
+            );
+          })()}
 
-              <div className="status-card cdr">
-                <div className="status-icon">
-                  <span className="icon">📄</span>
-                </div>
-                <div className="status-content">
-                  <h3>Deep CDR™</h3>
-                  <p className="status-neutral">No Sanitization Available</p>
-                </div>
-              </div>
-
-              <div className="status-card dlp">
-                <div className="status-icon">
-                  <span className="icon">🔒</span>
-                </div>
-                <div className="status-content">
-                  <h3>Proactive DLP</h3>
-                  <p className="status-neutral">No Results Available</p>
-                </div>
-              </div>
-
-              <div className="status-card vulnerabilities">
-                <div className="status-icon">
-                  <span className="icon">🛡️</span>
-                </div>
-                <div className="status-content">
-                  <h3>Vulnerabilities</h3>
-                  <p className="status-clean">No Vulnerabilities Found</p>
-                </div>
-              </div>
-            </>
-          )}
         </div>
+
+        {/* Extracted links (PDF/OOXML deepscan): URLs found in the document and
+            the URL model's verdict/score, parsed from the engine diagnostics. */}
+        {scanType === 'file' && argusLinks.length > 0 && (
+          <div className="argus-links-section">
+            <div className="section-header">
+              <h2>Extracted Links</h2>
+              <span className="argus-links-sub">{argusLinks.length} URL{argusLinks.length > 1 ? 's' : ''} scored by the Aegis URL model</span>
+            </div>
+            <div className="argus-links-list">
+              {argusLinks.map((link, i) => {
+                const label = URL_VERDICT[link.verdict] || link.verdict || '?';
+                const cls = (label || '').toLowerCase();
+                const malPct = link.malicious != null ? (parseFloat(link.malicious) * 100) : null;
+                return (
+                  <div className="argus-link-row" key={i}>
+                    <span className={`argus-link-badge verdict-${cls}`}>{label}</span>
+                    <span className="argus-link-url" title={link.url || ''}>{link.url || '(no url)'}</span>
+                    {malPct != null && !Number.isNaN(malPct) && (
+                      <span className="argus-link-score">{malPct.toFixed(1)}% malicious</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Main Content Area */}
         <div className="main-content">
           <div className="left-panel">
             {/* Multiscanning Section */}
+            {(multiscanningEnabled || engineResults.length > 0) && (
             <div className="multiscanning-section">
               <div className="section-header">
-                <h2>{scanType === 'url' ? 'URL Reputation Sources' : 'Multiscanning'}</h2>
+                <h2>{scanType === 'url' ? 'URL Reputation Sources' : 'Engine Results'}</h2>
                 <div className="threat-indicator">
-                  <span className={`threat-count ${threatScore === 0 ? 'clean' : 'threat'}`}>
+                  <span className={`threat-count ${threatsFound === 0 ? 'clean' : 'threat'}`}>
                     {threatsFound}
                   </span>
                   <span className="total-engines">/{totalEngines}</span>
                   <span className="engines-label">{scanType === 'url' ? 'SOURCES' : 'ENGINES'}</span>
                 </div>
               </div>
-              
-              <div className={`scan-status ${threatScore === 0 ? 'clean' : 'threat'}`}>
-                {threatScore === 0 ? 'No Threats Detected' : `${threatsFound} Threats Detected`}
+
+              <div className={`scan-status ${threatsFound === 0 ? 'clean' : 'threat'}`}>
+                {threatsFound === 0
+                  ? 'No Threats Detected'
+                  : `${threatsFound} ${threatsFound === 1 ? 'Threat' : 'Threats'} Detected`}
               </div>
 
               <div className="engines-table">
@@ -362,9 +524,12 @@ const ScanResults = ({
                 </div>
                 <div className="table-body">
                   {engineResults.map((engine, index) => (
-                    <div key={index} className={`engine-row ${engine.threat ? 'threat' : 'clean'}`}>
+                    <div key={index} className={`engine-row ${engine.isArgus ? 'argus-row ' : ''}${engine.threat ? 'threat' : 'clean'}`}>
                       <div className="col-engine">
-                        <span className="engine-name">{engine.name}</span>
+                        {engine.isArgus && <span className="argus-badge">AI</span>}
+                        <span className="engine-name">
+                          {engine.name}
+                        </span>
                         {scanType === 'url' && engine.category && (
                           <span className="engine-category"> ({engine.category})</span>
                         )}
@@ -376,7 +541,7 @@ const ScanResults = ({
                       </div>
                       <div className="col-update">
                         <span className="update-time">
-                          {engine.scanTime ? formatDate(engine.scanTime) : 'N/A'}
+                          {engine.defTime ? formatDate(engine.defTime) : ''}
                         </span>
                       </div>
                     </div>
@@ -384,25 +549,77 @@ const ScanResults = ({
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           <div className="right-panel">
-            {/* URL WHOIS Information or File Overview */}
-            {scanType === 'url' && urlData?.whois ? (
+            {/* URL panels (Argus assessment + WHOIS) or File Overview */}
+            {scanType === 'url' ? (
+              <>
+              {urlArgus && (
+                <div className="file-overview-section">
+                  <h2>Aegis URL Assessment</h2>
+
+                  <div className="overview-grid">
+                    <div className="overview-item full-width">
+                      <span className="label">URL</span>
+                      <span className="value">{urlData?.address || urlArgus.url}</span>
+                    </div>
+
+                    <div className="overview-item">
+                      <span className="label">Verdict</span>
+                      <span className={`value ${urlArgus.verdict === 1 ? 'threat' : ''}`}>
+                        {urlArgus.error
+                          ? 'Unavailable'
+                          : urlArgus.verdict === 0
+                            ? 'Clean'
+                            : urlArgus.verdict === 1
+                              ? 'Malicious'
+                              : urlArgus.verdict === 2
+                                ? 'Suspicious'
+                                : 'Unknown'}
+                      </span>
+                    </div>
+
+                    {urlArgus.malicious_probability != null && !urlArgus.error && (
+                      <div className="overview-item">
+                        <span className="label">Malicious Confidence</span>
+                        <span className="value">{urlArgus.malicious_probability.toFixed(1)}%</span>
+                      </div>
+                    )}
+
+                    {urlArgus.benign_probability != null && !urlArgus.error && (
+                      <div className="overview-item">
+                        <span className="label">Benign Confidence</span>
+                        <span className="value">{urlArgus.benign_probability.toFixed(1)}%</span>
+                      </div>
+                    )}
+
+                    {urlArgus.scan_time && (
+                      <div className="overview-item">
+                        <span className="label">Scan Time</span>
+                        <span className="value">{formatDate(urlArgus.scan_time)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {urlData?.whois && (
               <div className="file-overview-section">
                 <h2>WHOIS Information</h2>
-                
+
                 <div className="overview-grid">
                   <div className="overview-item full-width">
                     <span className="label">URL</span>
                     <span className="value">{urlData.address}</span>
                   </div>
-                  
+
                   <div className="overview-item">
                     <span className="label">Domain Name</span>
                     <span className="value">{urlData.whois.domain_name || 'N/A'}</span>
                   </div>
-                  
+
                   {urlData.whois.registrant_organization && (
                     <div className="overview-item">
                       <span className="label">Organization</span>
@@ -467,6 +684,8 @@ const ScanResults = ({
                   )}
                 </div>
               </div>
+              )}
+              </>
             ) : (
               <div className="file-overview-section">
                 <h2>File Overview</h2>
@@ -493,10 +712,12 @@ const ScanResults = ({
                     </div>
                   )}
                   
-                  <div className="overview-item">
-                    <span className="label">Category</span>
-                    <span className="value">{fileInfo?.category || 'D'}</span>
-                  </div>
+                  {fileInfo?.category && (
+                    <div className="overview-item">
+                      <span className="label">Category</span>
+                      <span className="value">{fileInfo.category}</span>
+                    </div>
+                  )}
                   
                   <div className="overview-item">
                     <span className="label">File Type</span>
@@ -592,25 +813,31 @@ const ScanResults = ({
                     </div>
                   )}
                   
-                  <div className="overview-item full-width">
-                    <span className="label">MD5</span>
-                    <span className="value hash">{fileInfo?.md5 || 'N/A'}</span>
-                  </div>
+                  {fileInfo?.md5 && (
+                    <div className="overview-item full-width">
+                      <span className="label">MD5</span>
+                      <span className="value hash">{fileInfo.md5}</span>
+                    </div>
+                  )}
                   
-                  <div className="overview-item full-width">
-                    <span className="label">SHA-1</span>
-                    <span className="value hash">{fileInfo?.sha1 || 'N/A'}</span>
-                  </div>
+                  {fileInfo?.sha1 && (
+                    <div className="overview-item full-width">
+                      <span className="label">SHA-1</span>
+                      <span className="value hash">{fileInfo.sha1}</span>
+                    </div>
+                  )}
                   
-                  <div className="overview-item full-width">
-                    <span className="label">SHA-256</span>
-                    <span className="value hash">{fileInfo?.sha256 || 'N/A'}</span>
-                  </div>
+                  {fileInfo?.sha256 && (
+                    <div className="overview-item full-width">
+                      <span className="label">SHA-256</span>
+                      <span className="value hash">{fileInfo.sha256}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Sandbox Analysis */}
+            {/* Sandbox Analysis — feature disabled, only multiscanning + Argus are active.
             {sandboxData && (
               <div className="sandbox-section">
                 <h2>Sandbox Analysis</h2>
@@ -753,29 +980,28 @@ const ScanResults = ({
                 )}
               </div>
             )}
+            */}
 
-            {/* Scan History */}
+            {/* Scan Details */}
             <div className="scan-history-section">
-              <h2>Scan History</h2>
+              <h2>Scan Details</h2>
               <p className="scan-history-info">
-                This {scanType === 'url' ? 'URL' : 'file'} has been scanned 1 time
+                {(() => {
+                  const scannedAt = scanType === 'url'
+                    ? urlData?.lookup_results?.start_time
+                    : (scanData?.scan_results?.scan_time || argusResult?.scan_time);
+                  const when = scannedAt ? formatDate(scannedAt) : null;
+                  return when && when !== 'N/A'
+                    ? `Last scanned on ${when}`
+                    : `${scanType === 'url' ? 'URL' : 'File'} scanned just now`;
+                })()}
               </p>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Chatbot Component */}
-      {user && (
-        <Chatbot 
-          Data={{ 
-            ScanningData: scanData, 
-            SandboxData: sandboxData, 
-            UrlScanData: urlData 
-          }}
-          user={user}
-        />
-      )}
+      {/* The ChatBot is mounted once at the App level so the conversation
+          carries over between this page and the main page. */}
     </div>
   );
 };

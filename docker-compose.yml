@@ -1,45 +1,120 @@
-version: "3.9"
+# Athena — full stack in one command:  docker compose up --build
+#
+# Services:
+#   ozzy-app   nginx serving the React SPA + reverse-proxy → :8080 (open this)
+#   ozzy-api   Express API + native Argus file/URL engines (koffi)  :5000
+#   ozzy-ai    FastAPI RAG chat (OpenAI + BGE-M3)                     :7860
+#   mongo      users / scan & chat history
+#   qdrant     vector store for the RAG knowledge base
+#   redis      RAG response cache
+#
+# Secrets come from a local .env file (copy .env.docker.example → .env).
 
 services:
-  ozzy-app:
-    build: ./ozzy-app
-    ports:
-      - "5173:5173"
-    depends_on:
-      - ozzy-api
-      - ozzy-ai
-    environment:
-      - VITE_API2_URL=http://ozzy-api:5000
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
-  ozzy-api:
-    build: ./ozzy-api
-    ports:
-      - "5000:5000"
-    env_file:
-      - ./ozzy-api/.env
-    depends_on:
-      - mongo
-
-  ozzy-ai:
-    build: ./ozzy-ai
-    ports:
-      - "7860:7860"
-    env_file:
-      - ./ozzy-ai/.env
-    depends_on:
-      - redis
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1"]
     volumes:
-      - mongo-data:/data/db
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ozzy-api:
+    build: ./ozzy-api
+    restart: unless-stopped
+    environment:
+      PORT: "5000"
+      # Internal MongoDB by default; override in .env to point at Atlas/another host.
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/ozzy}
+      METADEFENDER_API_KEY: ${METADEFENDER_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      # Engine loaded once; up to this many concurrent scans per engine.
+      ARGUS_SCAN_THREADS: ${ARGUS_SCAN_THREADS:-8}
+      ARGUS_URL_THREADS: ${ARGUS_URL_THREADS:-8}
+      # File-engine diagnostics level surfaced in the UI "Logs" panel. The API
+      # defaults to "debug" (full feature vector + scored deepscan URLs); set to
+      # "info" to quiet it.
+      ARGUS_LOG_LEVEL: ${ARGUS_LOG_LEVEL:-debug}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      # Any HTTP response (even 401) means the server is up.
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/',r=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ozzy-ai:
+    build: ./ozzy-ai
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      HF_HOME: /hf_cache
+      # Cross-encoder reranking runs on CPU and is the dominant pre-LLM cost.
+      # PyTorch defaults to physical-core count (6 here) and ignores
+      # OMP_NUM_THREADS, so reranking.py calls torch.set_num_threads(OZZY_AI_THREADS)
+      # explicitly. 8 is the measured sweet spot on this host (~10% faster than 6;
+      # 12 gives nothing — the op is memory-bandwidth bound). Accuracy is
+      # unaffected. Tune per host in .env.
+      OZZY_AI_THREADS: ${OZZY_AI_THREADS:-8}
+      OMP_NUM_THREADS: ${OZZY_AI_THREADS:-8}
+      MKL_NUM_THREADS: ${OZZY_AI_THREADS:-8}
+    volumes:
+      # Persist the ~4 GB BGE-M3 embedding/reranker models across restarts.
+      - hf_cache:/hf_cache
+      # Bind-mount the knowledge-base docs so `scripts.ingest --from-disk` sees the
+      # host's data/scraped (it is .dockerignore'd from the image on purpose).
+      - ./ozzy-ai/data/scraped:/app/data/scraped
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7860/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      # Generous: first boot downloads the embedding + reranker models.
+      start_period: 300s
+
+  ozzy-app:
+    build: ./ozzy-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - ozzy-api
+      - ozzy-ai
 
 volumes:
-  mongo-data:
+  mongo_data:
+  qdrant_data:
+  redis_data:
+  hf_cache:

@@ -3,12 +3,44 @@ import ChatbotIcon from "./ChatbotIcon";
 import ChatForm from "./ChatForm";
 import ChatMessage from "./ChatMessage";
 import InitialMessage from "./InitialMessage";
+import ClearHistoryButton from "./ClearHistoryButton";
 import "./ChatBot.css";
 import axios from 'axios';
 import { api } from "../../utils/api";
 
+// The argus result carries `engine_logs` (the per-scan diagnostics shown in the
+// UI Logs panel). Those are ephemeral diagnostics for the live scan — drop them
+// before persisting to history so stored entries don't carry the full log/feature
+// vector. The in-memory result keeps them for the Logs modal.
+const withoutEngineLogs = (argus) => {
+  if (!argus || typeof argus !== 'object' || argus.engine_logs === undefined) return argus || null;
+  const { engine_logs, ...rest } = argus;
+  return rest;
+};
+
+// Compact, widget-friendly timestamp: relative for anything in the last week
+// ("just now", "5m ago", "3h ago", "2d ago"), then a short absolute date.
+// Keeps history rows readable in the narrow popup instead of a full locale
+// string like "6/19/2026, 10:29:46 PM".
+const formatRelativeTime = (value) => {
+  if (!value) return "N/A";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return "N/A";
+  const diff = Date.now() - then;
+  const min = 60 * 1000, hour = 60 * min, day = 24 * hour;
+  if (diff < min) return "just now";
+  if (diff < hour) return `${Math.floor(diff / min)}m ago`;
+  if (diff < day) return `${Math.floor(diff / hour)}h ago`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)}d ago`;
+  return new Date(then).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
+
 const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
   const chatBodyRef = useRef();
+  // Remembers the last scan we already persisted (keyed by file id / URL) so the
+  // save-on-completion effect stays idempotent: clearing history or a late data
+  // update can't re-save the same scan or re-post its success message.
+  const savedScanRef = useRef(null);
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [scanHistory, setScanHistory] = useState([]);
@@ -21,8 +53,18 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
   const [userInitiatedScan, setUserInitiatedScan] = useState(false);
   const [previousScanData, setPreviousScanData] = useState(null);
 
-  const { ScanningData, SandboxData, UrlScanData } = localData;
-  const scanCompleted = ScanningData?.scan_results?.progress_percentage === 100 || UrlScanData?.lookup_results?.start_time;
+  // SandboxData disabled — only multiscanning + Argus are active.
+  // ArgusData is the per-file ARGUS engine verdict; it travels alongside the
+  // MetaDefender ScanningData so Athena can explain the AI verdict for files
+  // (URL Argus verdicts ride inside UrlScanData.agatha instead).
+  const { ScanningData, UrlScanData, ArgusData } = localData;
+  // A URL scan is "complete" once we have any URL data — MetaDefender lookup
+  // results and/or an Argus URL verdict (which may be the only source when
+  // multiscanning is off).
+  const scanCompleted =
+    ScanningData?.scan_results?.progress_percentage === 100 ||
+    UrlScanData?.lookup_results?.start_time ||
+    !!UrlScanData?.address;
 
   useEffect(() => {
     const currentScanData = JSON.stringify(Data);
@@ -80,7 +122,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       if (ScanningData) {
         const dataId = ScanningData?.data_id || "";
         const sha1 = ScanningData?.file_info?.sha1 || "";
-        const sandboxId = ScanningData?.last_sandbox_id?.[0]?.sandbox_id || "";
+        // const sandboxId = ScanningData?.last_sandbox_id?.[0]?.sandbox_id || ""; // Sandbox disabled
         const displayName = ScanningData?.file_info?.display_name || "Unknown File";
         const verdict = ScanningData?.process_info?.verdicts?.[0] || "No verdict available";
 
@@ -91,7 +133,8 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
           verdict,
           dataId,
           sha1,
-          sandboxId,
+          // sandboxId, // Sandbox disabled
+          agatha: withoutEngineLogs(ArgusData),
         };
         scanType = 'file';
       } else if (UrlScanData) {
@@ -104,11 +147,27 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
           displayName: address,
           sources,
           address,
+          agatha: UrlScanData?.agatha || null,
         };
         scanType = 'url';
       }
 
       if (newEntry) {
+        // Persist each distinct scan only once. Anything that re-marks
+        // userInitiatedScan for the same scan — clearing chat history while the
+        // results page keeps feeding the scan in via props, or a late Argus
+        // result mutating Data — must not re-save the entry or re-post the
+        // "scanned successfully" message. That re-trigger is the "it comes back
+        // after I delete it" loop.
+        const scanKey = scanType === 'file'
+          ? `file:${newEntry.dataId || newEntry.sha1 || newEntry.displayName}`
+          : `url:${newEntry.address}`;
+        if (savedScanRef.current === scanKey) {
+          setUserInitiatedScan(false);
+          return;
+        }
+        savedScanRef.current = scanKey;
+
         api.saveScanHistory(newEntry)
           .then(response => {
             setScanHistory(prev => {
@@ -144,7 +203,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
           });
       }
     }
-  }, [scanCompleted, ScanningData, UrlScanData, userInitiatedScan]);
+  }, [scanCompleted, ScanningData, UrlScanData, ArgusData, userInitiatedScan]);
 
   const generateBotResponse = async (history) => {
     const updateHistory = (text, isError = false) => {
@@ -164,16 +223,83 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
         file_info: ScanningData?.file_info || null,
         process_info: ScanningData?.process_info || null,
         sanitized_info: ScanningData?.sanitized || null,
-        sandbox_data: SandboxData || null,
+        // sandbox_data: SandboxData || null, // Sandbox disabled
         url_data: UrlScanData || null,
+        // Strip engine_logs — the RAG backend only reads the verdict fields, so
+        // shipping the full diagnostics log on every turn is pure overhead.
+        agatha: withoutEngineLogs(ArgusData),
       }),
     };
 
     try {
-      const response = await fetch('/ask', requestOptions);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "Something went wrong!");
-      updateHistory(data.answer.trim());
+      // Stream the answer token-by-token (/ask/stream emits Server-Sent Events)
+      // so it appears as it is generated instead of after the whole response is
+      // ready — a large perceived-latency win over the old blocking /ask call.
+      const response = await fetch('/ask/stream', requestOptions);
+      if (!response.ok || !response.body) {
+        let detail = "Something went wrong!";
+        try {
+          const data = await response.json();
+          detail = data?.detail || data?.error || detail;
+        } catch { /* non-JSON error body */ }
+        throw new Error(detail);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let answer = "";
+      let rendered = "";
+      let streamError = null;
+      let streamDone = false;
+
+      // Decouple network reading from rendering. The read loop fills `answer` as
+      // fast as chunks arrive; a requestAnimationFrame loop paints the latest
+      // text ~once per frame. Without this, bursts of buffered SSE frames resolve
+      // as back-to-back microtasks and React 18 batches every setState into a
+      // single repaint — so the whole answer pops in at once instead of typing
+      // out token by token.
+      const paint = () => {
+        if (answer !== rendered) {
+          rendered = answer;
+          updateHistory(rendered);
+        }
+        if (!streamDone) requestAnimationFrame(paint);
+      };
+      requestAnimationFrame(paint);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // SSE frames are separated by a blank line; keep any partial trailing frame.
+          const frames = buffer.split("\n\n");
+          buffer = frames.pop();
+
+          for (const frame of frames) {
+            const line = frame.trim();
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (payload === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(payload);
+              if (parsed.delta) {
+                answer += parsed.delta;
+              } else if (parsed.error) {
+                streamError = parsed.error;
+              }
+            } catch { /* ignore malformed frame */ }
+          }
+        }
+      } finally {
+        streamDone = true;
+      }
+
+      if (streamError) throw new Error(streamError);
+      // Final flush — paints the last frame and trims trailing whitespace.
+      updateHistory(answer.trim() || "No response received.");
     } catch (error) {
       updateHistory(error.message, true);
     }
@@ -190,32 +316,58 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
 
     try {
       let newScanningData = null;
-      let newSandboxData = null;
+      // let newSandboxData = null; // Sandbox disabled
       let newUrlScanData = null;
+      let newArgusData = null;
 
       if (entry.type === "file") {
         if (entry.dataId) {
           newScanningData = await api.getScanData(entry.dataId);
         }
+        // Restore the stored ARGUS file verdict so Athena can still explain it
+        // when a scan is reloaded from history.
+        newArgusData = entry.agatha || entry.argus || null;
 
-        if (entry.sha1 && entry.sandboxId) {
-          newSandboxData = await api.getSandboxData(entry.sha1);
-        }
+        // Sandbox disabled — only multiscanning + Argus are active.
+        // if (entry.sha1 && entry.sandboxId) {
+        //   newSandboxData = await api.getSandboxData(entry.sha1);
+        // }
       } else if (entry.type === "url") {
         const encodedUrl = encodeURIComponent(entry.address);
-        newUrlScanData = await api.getUrlScanData(encodedUrl);
+        // MetaDefender reputation re-lookup (best-effort — may be unavailable if
+        // multiscanning was off for this scan).
+        let mdData = null;
+        try {
+          mdData = await api.getUrlScanData(encodedUrl);
+        } catch (e) {
+          console.warn("MetaDefender URL re-lookup failed:", e?.message);
+        }
+        // Re-run the Argus URL engine so the loaded page shows both verdicts,
+        // falling back to the stored verdict if the engine is unavailable.
+        let argus = entry.agatha || entry.argus || null;
+        try {
+          argus = await api.getArgusUrlScan(entry.address);
+        } catch (e) {
+          console.warn("Argus URL re-scan failed:", e?.message);
+        }
+        newUrlScanData = {
+          ...(mdData || { address: entry.address }),
+          agatha: argus,
+        };
       }
 
       setLocalData({
         ScanningData: newScanningData,
-        SandboxData: newSandboxData,
+        // SandboxData: newSandboxData, // Sandbox disabled
         UrlScanData: newUrlScanData,
+        ArgusData: newArgusData,
       });
 
       onSelectHistory?.({
         ScanningData: newScanningData,
-        SandboxData: newSandboxData,
+        // SandboxData: newSandboxData, // Sandbox disabled
         UrlScanData: newUrlScanData,
+        ArgusData: newArgusData,
       });
 
       setChatHistory((prev) => {
@@ -256,16 +408,18 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
     setChatHistory(convertedMessages);
     setLocalData({
       ScanningData: entry.scanData || null,
-      SandboxData: entry.sandboxData || null,
+      // SandboxData: entry.sandboxData || null, // Sandbox disabled
       UrlScanData: entry.urlData || null,
+      ArgusData: entry.agathaData || entry.argusData || null,
     });
-    
+
     setSelectedChatHistoryId(entry._id);
-    
+
     onSelectHistory?.({
       ScanningData: entry.scanData || null,
-      SandboxData: entry.sandboxData || null,
+      // SandboxData: entry.sandboxData || null, // Sandbox disabled
       UrlScanData: entry.urlData || null,
+      ArgusData: entry.agathaData || entry.argusData || null,
     });
   };
 
@@ -287,11 +441,16 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       setChatHistory([]);
       setLocalData({
         ScanningData: null,
-        SandboxData: null,
-        UrlScanData: null
+        // SandboxData: null, // Sandbox disabled
+        UrlScanData: null,
+        ArgusData: null
       });
       setUserInitiatedScan(false);
-      setPreviousScanData(null);
+      // NOTE: do NOT reset previousScanData here. On the results page the parent
+      // keeps passing the completed scan in via props; resetting this would make
+      // the data-watch effect treat it as a brand-new scan and re-trigger the
+      // save (re-adding the history row + success message right after they were
+      // cleared).
       onSelectHistory?.({});
     } catch (error) {
       console.error('Failed to clear chat histories:', error);
@@ -313,8 +472,9 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       const historyData = {
         messages,
         scanData: ScanningData || null,
-        sandboxData: SandboxData || null,
+        // sandboxData: SandboxData || null, // Sandbox disabled
         urlData: UrlScanData || null,
+        agathaData: withoutEngineLogs(ArgusData),
         chatId: selectedChatHistoryId
       };
 
@@ -343,10 +503,14 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
 
     if (entry.type === "file") {
       verdict = entry.verdict || "No verdict available";
-      if (verdict === "No Threat Detected") {
-        color = "green";
-      } else if (verdict.toLowerCase().includes("infected")) {
+      // Match defensively: verdicts come from different engines and may be
+      // worded as "No Threat Detected" (MetaDefender) or "No Threats Detected"
+      // (in-app label), and threats as "Infected"/"Malicious".
+      const v = verdict.toLowerCase();
+      if (v.includes("infected") || v.includes("malicious")) {
         color = "red";
+      } else if (v.includes("no threat")) {
+        color = "green";
       } else {
         color = "default";
       }
@@ -359,18 +523,44 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
       };
     } else if (entry.type === "url") {
       const sources = entry.sources || [];
-      verdict = sources.find((s) => s.assessment === "trustworthy")
-        ? "Trustworthy"
-        : sources.some((s) => s.status === 5)
-        ? "Unknown"
-        : "Suspicious";
-      if (verdict === "Trustworthy") {
-        color = "green";
-      } else if (verdict === "Suspicious") {
-        color = "red";
+      const argus = entry.agatha || entry.argus;
+
+      // Lead with the Argus URL verdict so history matches the results page
+      // ("No Threats Detected" rather than MetaDefender's "Trustworthy"). Fall
+      // back to reputation sources only when no Argus verdict was stored.
+      if (argus && argus.verdict !== undefined && argus.verdict !== null) {
+        if (argus.error || argus.verdict === -1) {
+          verdict = "Unavailable";
+          color = "default";
+        } else if (argus.verdict === 0) {
+          verdict = "No Threats Detected";
+          color = "green";
+        } else if (argus.verdict === 1) {
+          verdict = argus.threat_name || "Malicious";
+          color = "red";
+        } else if (argus.verdict === 2) {
+          verdict = "Suspicious";
+          color = "red";
+        } else {
+          verdict = "Unknown";
+          color = "default";
+        }
+      } else if (sources.length > 0) {
+        if (sources.find((s) => s.assessment === "trustworthy")) {
+          verdict = "No Threats Detected";
+          color = "green";
+        } else if (sources.some((s) => s.status === 5)) {
+          verdict = "Unknown";
+          color = "default";
+        } else {
+          verdict = "Suspicious";
+          color = "red";
+        }
       } else {
+        verdict = "Unknown";
         color = "default";
       }
+
       const name = entry.displayName || "Unknown URL";
       return {
         name: name.length > 10 ? `${name.substring(0, 10)}...` : name,
@@ -403,7 +593,7 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
                   setShowScanDropdown(false);
                 }}
               />
-              <h2 className="logo-text">Ozzy</h2>
+              <h2 className="logo-text">Athena</h2>
             </div>
             <div className="header-buttons">
               <button
@@ -444,38 +634,43 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
         </div>
 
         {showScanDropdown && (
-          <div className="scan-history-dropdown">
-            <button
-              onClick={handleClearScanHistory}
-              className="scan-clear-history-button"
-            >
-              Clear
-            </button>
-            {scanHistory.length === 0 && <p className="scan-history-empty">No saved scans.</p>}
-            {scanHistory.length > 0 && (
+          <div className="history-panel scan-history-dropdown">
+            <div className="history-panel-header">
+              <span className="history-panel-title">Scan history</span>
+              {scanHistory.length > 0 && (
+                <span className="history-panel-count">{scanHistory.length}</span>
+              )}
+            </div>
+            <div className="history-scroll">
+            {scanHistory.length === 0 ? (
+              <div className="history-empty">
+                <span className="material-symbols-rounded">history</span>
+                <p>No saved scans yet.</p>
+              </div>
+            ) : (
               <table className="scan-history-table">
                 <thead>
                   <tr>
-                    <th>NAME</th>
-                    <th>SCAN TIME</th>
-                    <th>VERDICT</th>
+                    <th>Name</th>
+                    <th>When</th>
+                    <th>Verdict</th>
                   </tr>
                 </thead>
                 <tbody>
                   {scanHistory.map((entry) => {
-                    const { name, fullName, verdict, color } = getDisplayInfo(entry);
+                    const { fullName, verdict, color } = getDisplayInfo(entry);
                     return (
                       <tr
                         key={entry._id}
                         className="scan-history-entry"
                         onClick={() => handleSelectScanHistory(entry)}
                       >
-                        <td title={fullName} className={`scan-history-cell-${color}`}>
-                          {name}
+                        <td title={fullName}>{fullName}</td>
+                        <td title={entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "N/A"}>
+                          {formatRelativeTime(entry.timestamp)}
                         </td>
-                        <td title={entry.timestamp || "N/A"}>{new Date(entry.timestamp).toLocaleString() || "N/A"}</td>
-                        <td title={verdict} className={`scan-history-cell-${color}`}>
-                          {verdict}
+                        <td title={verdict}>
+                          <span className={`history-pill pill-${color}`}>{verdict}</span>
                         </td>
                       </tr>
                     );
@@ -483,44 +678,61 @@ const ChatBot = ({ Data, onSelectHistory, user, onToggle }) => {
                 </tbody>
               </table>
             )}
+            </div>
+            {scanHistory.length > 0 && (
+              <div className="history-panel-footer">
+                <ClearHistoryButton onClear={handleClearScanHistory} label="Clear scans" />
+              </div>
+            )}
           </div>
         )}
 
         {showChatHistoryDropdown && (
-          <div className="chat-history-dropdown">
-            <button
-              onClick={handleClearChatHistory}
-              className="chat-clear-history-button"
-            >
-              Clear
-            </button>
-            {savedChatHistories.length === 0 && <p className="chat-history-empty">No saved chats.</p>}
-            {savedChatHistories.length > 0 && (
+          <div className="history-panel chat-history-dropdown">
+            <div className="history-panel-header">
+              <span className="history-panel-title">Chat history</span>
+              {savedChatHistories.length > 0 && (
+                <span className="history-panel-count">{savedChatHistories.length}</span>
+              )}
+            </div>
+            <div className="history-scroll">
+            {savedChatHistories.length === 0 ? (
+              <div className="history-empty">
+                <span className="material-symbols-rounded">forum</span>
+                <p>No saved chats yet.</p>
+              </div>
+            ) : (
               <table className="chat-history-table">
                 <thead>
                   <tr>
-                    <th>TIMESTAMP</th>
-                    <th>MESSAGES</th>
+                    <th>Last message</th>
+                    <th>When</th>
                   </tr>
                 </thead>
                 <tbody>
                   {savedChatHistories.map((entry) => {
                     const lastMessage = entry.messages[entry.messages.length - 1]?.content || "No messages";
-                    const truncatedMessage = lastMessage.length > 25 ? `${lastMessage.substring(0, 25)}...` : lastMessage;
-                    const timestamp = new Date(entry.lastUpdated).toLocaleString();
                     return (
                       <tr
                         key={entry._id}
                         className="chat-history-entry"
                         onClick={() => handleSelectChatHistory(entry)}
                       >
-                        <td title={timestamp}>{timestamp}</td>
-                        <td title={lastMessage}>{truncatedMessage}</td>
+                        <td title={lastMessage}>{lastMessage}</td>
+                        <td title={entry.lastUpdated ? new Date(entry.lastUpdated).toLocaleString() : "N/A"}>
+                          {formatRelativeTime(entry.lastUpdated)}
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            )}
+            </div>
+            {savedChatHistories.length > 0 && (
+              <div className="history-panel-footer">
+                <ClearHistoryButton onClear={handleClearChatHistory} label="Clear chats" />
+              </div>
             )}
           </div>
         )}

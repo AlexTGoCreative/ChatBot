@@ -12,14 +12,16 @@ const fetcher = url => axios.get(url, {
   }
 }).then(res => res.data);
 
-export function useFileScan(scanSource, user) {
+export function useFileScan(scanSource, user, multiscanningEnabled = true, argusSettings = null) {
   const { cache } = useSWRConfig();
   const [data, setData] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
   const [hash, setHash] = useState(null);
   const [scanError, setScanError] = useState(null);
-  const [sandboxData, setSandboxData] = useState(null);
+  // Sandbox feature disabled — only multiscanning + Argus are active.
+  // const [sandboxData, setSandboxData] = useState(null);
   const [UrlData, setUrlData] = useState(null);
+  const [argusResult, setArgusResult] = useState(null);
   const [scanStatus, setScanStatus] = useState('idle'); // 'idle', 'scanning', 'success', 'error'
   const [scanProgress, setScanProgress] = useState(0);
   const [scanMessage, setScanMessage] = useState('');
@@ -30,8 +32,9 @@ export function useFileScan(scanSource, user) {
     setIsComplete(false);
     setHash(null);
     setScanError(null);
-    setSandboxData(null);
+    // setSandboxData(null);
     setUrlData(null);
+    setArgusResult(null);
     setScanStatus('idle');
     setScanProgress(0);
     setScanMessage('');
@@ -82,23 +85,24 @@ export function useFileScan(scanSource, user) {
             setScanMessage('');
           }, 2000);
 
-          const sandboxId = newData?.last_sandbox_id?.[0]?.sandbox_id;
-          const sha1 = newData?.file_info?.sha1;
-
-          if (sandboxId && sha1) {
-            try {
-              const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
-                headers: {
-                  apikey: MD_API_KEY,
-                  Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
-              });
-              setSandboxData(sandboxRes.data);
-              console.log("Sandbox Data:", sandboxRes.data);
-            } catch (err) {
-              console.error("Error fetching sandbox data:", err);
-            }
-          }
+          // Sandbox feature disabled — only multiscanning + Argus are active.
+          // const sandboxId = newData?.last_sandbox_id?.[0]?.sandbox_id;
+          // const sha1 = newData?.file_info?.sha1;
+          //
+          // if (sandboxId && sha1) {
+          //   try {
+          //     const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
+          //       headers: {
+          //         apikey: MD_API_KEY,
+          //         Authorization: `Bearer ${localStorage.getItem('token')}`
+          //       }
+          //     });
+          //     setSandboxData(sandboxRes.data);
+          //     console.log("Sandbox Data:", sandboxRes.data);
+          //   } catch (err) {
+          //     console.error("Error fetching sandbox data:", err);
+          //   }
+          // }
         }
       },
       onError: (err) => {
@@ -120,7 +124,8 @@ export function useFileScan(scanSource, user) {
       setHash(null);
       setIsComplete(false);
       setScanError(null);
-      setSandboxData(null);
+      // setSandboxData(null);
+      setArgusResult(null);
       setScanProgress(0);
       
       // Set initial scanning state
@@ -129,69 +134,122 @@ export function useFileScan(scanSource, user) {
       let response;
 
       if (scanSource.type === 'file') {
-        setScanMessage('Uploading file...');
-        const formData = new FormData();
-        formData.append('file', scanSource.value);
-        response = await axios.post(`${API_URL}/scan-file`, formData, {
-          headers: { 
-            apikey: MD_API_KEY,
-            Authorization: `Bearer ${localStorage.getItem('token')}` 
-          },
-        });
-        const { hash } = response.data;
-        setHash(hash);
-        setScanMessage('Starting file scan...');
+        setScanMessage('Scanning file...');
+
+        // Run the Argus engine scan only when the user enabled it in settings.
+        const argusEnabled = !!argusSettings?.enabled;
+
+        // With no scanner selected there is nothing to run — surface a clear
+        // error instead of silently "completing" with an empty result page.
+        if (!multiscanningEnabled && !argusEnabled) {
+          setScanStatus('error');
+          setScanMessage('No scanner enabled. Turn on Multiscanning or the Argus engine to scan a file.');
+          return;
+        }
+        const argusPromise = argusEnabled
+          ? (async () => {
+              try {
+                const argusFormData = new FormData();
+                argusFormData.append('file', scanSource.value);
+                // Per-file-type preferences (layer toggles + thresholds). Sent
+                // as a JSON string; when absent/empty the engine uses its defaults.
+                const prefs = argusSettings?.preferences;
+                if (prefs && typeof prefs === 'object' && Object.keys(prefs).length > 0) {
+                  argusFormData.append('preferences', JSON.stringify(prefs));
+                }
+                const argusRes = await axios.post(`${API_URL}/agatha-scan`, argusFormData, {
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                  },
+                });
+                setArgusResult(argusRes.data);
+              } catch (argusErr) {
+                console.error('Argus engine scan error:', argusErr);
+                setArgusResult({
+                  engine: 'Argus',
+                  verdict: -1,
+                  error: 'Engine unavailable'
+                });
+              }
+            })()
+          : Promise.resolve();
+
+        // Run MetaDefender multiscanning only if enabled
+        if (multiscanningEnabled) {
+          const formData = new FormData();
+          formData.append('file', scanSource.value);
+          response = await axios.post(`${API_URL}/scan-file`, formData, {
+            headers: { 
+              apikey: MD_API_KEY,
+              Authorization: `Bearer ${localStorage.getItem('token')}` 
+            },
+          });
+          const { hash } = response.data;
+          setHash(hash);
+        } else {
+          // Wait for Argus to complete, then mark done
+          await argusPromise;
+          setIsComplete(true);
+          setScanStatus('success');
+          setTimeout(() => {
+            setScanStatus('idle');
+          }, 2000);
+        }
       } else if (scanSource.type === 'url') {
         setScanMessage('Processing URL...');
+
+        // URLs mirror the file flow: MetaDefender URL reputation (gated by
+        // multiscanning) runs alongside the Argus URL engine (gated by Argus
+        // settings) so the two verdicts can be compared. The Argus verdict is
+        // merged into the URL data object under `.agatha`.
+        const argusEnabled = !!argusSettings?.enabled;
+
+        if (!multiscanningEnabled && !argusEnabled) {
+          setScanStatus('error');
+          setScanMessage('No scanner enabled. Turn on Multiscanning or the Argus engine to scan a URL.');
+          return;
+        }
+
         const encodedUrl = encodeURIComponent(scanSource.value);
-        const response = await axios.get(`${API_URL}/scan-url-direct?encodedUrl=${encodedUrl}`, {
-          headers: { 
-            apikey: MD_API_KEY,
-            Authorization: `Bearer ${localStorage.getItem('token')}` 
-          },
-        });
-        setUrlData(response.data);
+
+        // Argus URL engine (independent ONNX verdict). Never throws — surfaces
+        // a graceful "unavailable" entry so it can't break the MetaDefender flow.
+        const argusUrlPromise = argusEnabled
+          ? axios.get(`${API_URL}/agatha-url-scan?url=${encodedUrl}`, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            })
+              .then(r => r.data)
+              .catch(argusErr => {
+                console.error('Argus URL engine scan error:', argusErr);
+                return { engine: 'Argus URL', verdict: -1, error: 'Engine unavailable' };
+              })
+          : Promise.resolve(null);
+
+        // MetaDefender URL reputation (only when multiscanning is enabled).
+        const mdUrlPromise = multiscanningEnabled
+          ? axios.get(`${API_URL}/scan-url-direct?encodedUrl=${encodedUrl}`, {
+              headers: {
+                apikey: MD_API_KEY,
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+              },
+            }).then(r => r.data)
+          : Promise.resolve(null);
+
+        const [mdData, argusData] = await Promise.all([mdUrlPromise, argusUrlPromise]);
+
+        // Build a single URL data object. When multiscanning is off we still
+        // need an `address` so the results page and history have something to
+        // key on.
+        const merged = {
+          ...(mdData || { address: scanSource.value }),
+          agatha: argusData || null,
+        };
+        setUrlData(merged);
+
         setIsComplete(true);
         setScanStatus('success');
         setScanMessage('URL scan completed successfully!');
-        
-        // Auto-hide success message after 2 seconds
-        setTimeout(() => {
-          setScanStatus('idle');
-          setScanMessage('');
-        }, 2000);
-      } else if (scanSource.type === 'hash') {
-        setScanMessage('Looking up hash...');
-        const response = await axios.get(`${API_URL}/hash-lookup/${scanSource.value}`, {
-          headers: { 
-            apikey: MD_API_KEY,
-            Authorization: `Bearer ${localStorage.getItem('token')}` 
-          },
-        });
-        setData(response.data);
-        setIsComplete(true);
-        setScanStatus('success');
-        setScanMessage('Hash lookup completed successfully!');
-        
-        // Check for sandbox data if available
-        const sandboxId = response.data?.last_sandbox_id?.[0]?.sandbox_id;
-        const sha1 = response.data?.file_info?.sha1;
 
-        if (sandboxId && sha1) {
-          try {
-            const sandboxRes = await axios.get(`${API_URL}/sandbox/${sha1}`, {
-              headers: {
-                apikey: MD_API_KEY,
-                Authorization: `Bearer ${localStorage.getItem('token')}`
-              }
-            });
-            setSandboxData(sandboxRes.data);
-            console.log("Sandbox Data:", sandboxRes.data);
-          } catch (err) {
-            console.error("Error fetching sandbox data:", err);
-          }
-        }
-        
         // Auto-hide success message after 2 seconds
         setTimeout(() => {
           setScanStatus('idle');
@@ -218,10 +276,19 @@ export function useFileScan(scanSource, user) {
     }
   };
 
+  // Dismiss the overlay (e.g. after an error) so the user isn't stuck behind a
+  // blocking layer with no way out.
+  const dismissScan = () => {
+    setScanStatus('idle');
+    setScanMessage('');
+    setScanError(null);
+  };
+
   return {
     data,
-    sandboxData,
+    // sandboxData, // Sandbox feature disabled
     UrlData,
+    argusResult,
     error: error || scanError,
     isLoading: !data && !error && !scanError,
     isComplete,
@@ -230,6 +297,7 @@ export function useFileScan(scanSource, user) {
     scanProgress,
     scanMessage,
     retryScan,
+    dismissScan,
     scanType: scanSource?.type,
   };
 }

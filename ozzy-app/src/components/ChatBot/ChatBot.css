@@ -1,25 +1,33 @@
+/* ============================================================
+   Athena chat widget — locked to the shared dark "security console"
+   design tokens (see src/index.css) so the assistant blends into
+   the MetaDefender-style app instead of reading as a separate
+   light-themed consumer widget.
+   ============================================================ */
+
 #chatbot-toggler {
   position: fixed;
-  bottom: 15px;
+  bottom: 18px;
   right: 18px;
   border: none;
-  height: 60px;
-  width: 60px;
+  height: 56px;
+  width: 56px;
   display: flex;
   cursor: pointer;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #254bbd;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
+  background: var(--accent);
+  box-shadow: var(--shadow-accent);
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
   user-select: none;
+  z-index: 60;
 }
 
 #chatbot-toggler.has-hover:hover {
-  background: #1e3a8a;
-  transform: scale(1.1);
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.2);
+  background: var(--accent-hover);
+  transform: scale(1.06);
+  box-shadow: 0 10px 32px -10px rgba(29, 107, 252, 0.65);
 }
 
 .container.show-chatbot #chatbot-toggler {
@@ -27,9 +35,9 @@
 }
 
 .container.show-chatbot #chatbot-toggler.has-hover:hover {
-  background: #254bbd;
+  background: var(--accent);
   transform: rotate(90deg);
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-accent);
 }
 
 #chatbot-toggler span {
@@ -49,25 +57,27 @@
 .chatbot-popup {
   position: fixed;
   width: 380px;
-  height: 450px;
+  height: 460px;
   opacity: 0;
   right: 18px;
-  bottom: 80px;
+  bottom: 84px;
   pointer-events: none;
   transform: scale(0.2);
   overflow: hidden;
-  background: linear-gradient(to top, rgba(195, 206, 238, 0.5), rgba(225, 225, 225, 0.5), rgba(195, 206, 238, 0.5)), url(https://static.opswat.com/assets/images/ozzy-bg.webp);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  border-radius: 15px;
+  /* Dark surface with a faint accent glow in the top-right — mirrors the
+     app body background so the popup reads as part of the console. */
+  background:
+    radial-gradient(420px 280px at 88% -8%, rgba(29, 107, 252, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--surface-1), var(--bg-2));
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
   transform-origin: bottom right;
-  box-shadow: 0 0 128px 0 rgba(0, 0, 0, 0.1),
-    0 32px 64px -48px rgba(0, 0, 0, 0.5);
-  transition: all 0.1s ease;
+  box-shadow: var(--shadow-lg);
+  transition: opacity 0.15s ease, transform 0.15s ease;
   display: flex;
   flex-direction: column;
   user-select: none;
+  z-index: 55;
 }
 
 .container.show-chatbot .chatbot-popup {
@@ -78,9 +88,10 @@
 
 .chatbot-popup .chat-header {
   display: flex;
-  padding: 4px 6px; 
+  padding: 6px 8px;
   align-items: center;
-  background: #ffffff; 
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-1));
+  border-bottom: 1px solid var(--border);
   justify-content: space-between;
   flex-shrink: 0;
 }
@@ -90,13 +101,13 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 4px 6px; 
-  transition: background 0.2s ease;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  transition: background 0.18s ease;
 }
 
 .chat-header .inner-header:hover {
-  background: #e6efff; 
-  border-radius: 8px; 
+  background: var(--surface-3);
 }
 
 .chat-header .header-info {
@@ -112,16 +123,16 @@
   flex-shrink: 0;
   padding: 4px;
   fill: #fff;
-  background: #0A0F1E;
+  background: var(--accent);
   border-radius: 50%;
   user-select: none;
 }
 
 .header-info .logo-text {
-  color: #0A0F1E;
+  color: var(--text);
   font-weight: 600;
   font-size: 1rem;
-  letter-spacing: 0.02rem;
+  letter-spacing: -0.01em;
   user-select: none;
 }
 
@@ -129,38 +140,38 @@
   border: none;
   height: 30px;
   width: 30px;
-  color: #2f3b51;
+  color: var(--text-muted);
   cursor: pointer;
   padding-top: 2px;
-  margin-right: -5px;
-  font-size: 1.5rem;
-  border-radius: 8px; 
+  margin-right: -2px;
+  font-size: 1.4rem;
+  border-radius: var(--r-sm);
   background: none;
-  transition: 0.2s ease;
+  transition: background 0.18s ease, color 0.18s ease;
   user-select: none;
 }
 
 .chat-header button:hover {
-  background: #d6e4ff; 
-  color: #0055ff;
+  background: var(--surface-3);
+  color: var(--accent-hover);
 }
 
 .chat-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   height: calc(500px - 100px);
   overflow-y: auto;
-  padding: 12px;
+  padding: 14px 12px;
   scrollbar-width: thin;
-  scrollbar-color: #c8d3eb transparent;
+  scrollbar-color: var(--surface-3) transparent;
   flex-grow: 1;
 }
 
 .chat-body .message {
   display: flex;
   gap: 8px;
-  align-items: flex-start; 
+  align-items: flex-start;
 }
 
 .chat-body .message svg {
@@ -168,76 +179,158 @@
   height: 26px;
   flex-shrink: 0;
   padding: 4px;
-  fill: #ffffff;
+  fill: #fff;
   margin-bottom: 2px;
-  background: #0A0F1E;
+  background: var(--accent);
   border-radius: 50%;
 }
 
 .chat-body .message .message-text {
-  padding: 8px 10px;
-  max-width: 75%;
-  font-size: 0.8rem;
+  padding: 8px 11px;
+  max-width: 78%;
+  font-size: 0.82rem;
+  line-height: 1.45;
   word-wrap: break-word;
   white-space: pre-line;
 }
 
+/* Rendered markdown answers (bot). React-markdown emits block elements, so we
+   drop pre-line here (block layout handles spacing) and tighten default margins
+   to fit the narrow chat bubble. */
+.chat-body .message .message-text.markdown-body {
+  white-space: normal;
+}
+
+.chat-body .message-text.markdown-body > *:first-child { margin-top: 0; }
+.chat-body .message-text.markdown-body > *:last-child { margin-bottom: 0; }
+
+.chat-body .message-text.markdown-body p {
+  margin: 0 0 8px;
+}
+
+.chat-body .message-text.markdown-body ul,
+.chat-body .message-text.markdown-body ol {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.chat-body .message-text.markdown-body li {
+  margin: 2px 0;
+}
+
+.chat-body .message-text.markdown-body h1,
+.chat-body .message-text.markdown-body h2,
+.chat-body .message-text.markdown-body h3,
+.chat-body .message-text.markdown-body h4 {
+  margin: 8px 0 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.chat-body .message-text.markdown-body a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.chat-body .message-text.markdown-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  background: var(--surface-3);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.chat-body .message-text.markdown-body pre {
+  margin: 0 0 8px;
+  padding: 8px;
+  background: var(--surface-3);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.chat-body .message-text.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.chat-body .message-text.markdown-body table {
+  border-collapse: collapse;
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+}
+
+.chat-body .message-text.markdown-body th,
+.chat-body .message-text.markdown-body td {
+  border: 1px solid var(--border);
+  padding: 3px 6px;
+}
+
 .chat-body .message.error .message-text {
-  color: #ff0000;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid rgba(255, 110, 117, 0.3);
+  border-radius: var(--r-md);
 }
 
 .chat-body .bot-message .message-text {
-  background: #e8f0ff;
-  border-radius: 0 8px 8px 8px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 2px 10px 10px 10px;
 }
 
 .chat-body .user-message {
   flex-direction: column;
   align-items: flex-end;
-  color: #0A0F1E;
 }
 
 .chat-body .user-message .message-text {
-  color: #0A0F1E;
-  background: #f3f4f7;
-  border-radius: 8px 0 8px 8px;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 10px 2px 10px 10px;
 }
 
 .chat-footer {
   position: relative;
   width: 100%;
-  background: transparent; 
-  padding: 8px 12px;
+  background: transparent;
+  padding: 10px 12px 12px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  align-items: center; 
+  align-items: center;
+  border-top: 1px solid var(--border);
 }
 
 .chat-footer .chat-form {
   display: flex;
   align-items: center;
   position: relative;
-  width: 100%; 
-  height: 34px; 
-  background: #fff; 
-  border-radius: 12px;
-  outline: 1px solid #CCCCE5;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  height: 36px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  outline: 1px solid var(--border);
+  transition: outline-color 0.18s ease;
 }
 
 .chat-form:focus-within {
-  outline: 2px solid #254bbd;
+  outline: 2px solid var(--accent);
 }
 
 .chat-form .message-input {
   width: 100%;
-  height: 34px;
+  height: 36px;
   border: none;
   outline: none;
-  font-size: 0.8rem;
-  padding: 0 10px;
+  font-size: 0.82rem;
+  padding: 0 12px;
   background: none;
+  color: var(--text);
+}
+
+.chat-form .message-input::placeholder {
+  color: var(--text-faint);
 }
 
 .chat-form #send-message {
@@ -249,10 +342,10 @@
   cursor: pointer;
   display: none;
   margin-right: 4px;
-  background: #254bbd;
+  background: var(--accent);
   border-radius: 50%;
   font-size: 0.9rem;
-  transition: 0.2s ease;
+  transition: background 0.18s ease;
 }
 
 .chat-form .message-input:valid ~ #send-message {
@@ -260,7 +353,7 @@
 }
 
 .chat-form #send-message:hover {
-  background: #1e3a8a;
+  background: var(--accent-hover);
 }
 
 .header-buttons {
@@ -277,7 +370,7 @@
 }
 
 .header-buttons button svg {
-  fill: #2f3b51;
+  fill: var(--text-muted);
   background: transparent !important;
   width: 20px;
   height: 20px;
@@ -285,75 +378,139 @@
 }
 
 .header-buttons button:hover svg {
-  fill: #0055ff;
+  fill: var(--accent-hover);
 }
 
-.scan-history-dropdown {
+.header-buttons button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── History dropdowns (scan + chat) — dark tables that mirror the
+   engines table on the scan-results page ──────────────────────────── */
+.scan-history-dropdown,
+.chat-history-dropdown {
   position: absolute;
   top: 50px;
   bottom: 50px;
   width: 100%;
   max-width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--surface-1), var(--bg-2));
   border: none;
-  border-radius: 0;
-  scrollbar-width: thin;
-  scrollbar-color: #c0bec7 transparent;
-  z-index: 11;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   box-sizing: border-box;
 }
 
-.scan-history-table {
+.scan-history-dropdown { z-index: 11; }
+.chat-history-dropdown { z-index: 12; }
+
+/* Titled header strip at the top of each history panel. */
+.history-panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.history-panel-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text);
+}
+
+.history-panel-count {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  border: 1px solid rgba(29, 107, 252, 0.3);
+}
+
+/* Scrollable list region between the header and the pinned footer. */
+.history-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+/* Pinned action bar at the bottom of each history panel. */
+.history-panel-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+}
+
+.scan-history-table,
+.chat-history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
-  table-layout: auto;
+  font-size: 0.82rem;
+  /* Fixed layout so the declared column widths are honoured: a long file
+     name / URL ellipsizes inside its own column instead of stretching it and
+     pushing the date and verdict out of view. */
+  table-layout: fixed;
 }
 
-.scan-history-table th {
-  padding: 12px 8px;
+.scan-history-table th,
+.chat-history-table th {
+  padding: 11px 10px;
   text-align: left;
   border: none;
-  background-color: #f8f9fa;
-  font-weight: 600;
-  color: #333;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--bg-2);
+  font-weight: 700;
+  color: var(--text-faint);
   text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.05rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.07em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: sticky;
+  top: 0;
 }
 
-.scan-history-table td {
-  padding: 12px 8px;
+.scan-history-table td,
+.chat-history-table td {
+  padding: 11px 10px;
   text-align: left;
   border: none;
-  color: #555;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
 }
 
-.scan-history-table tr.scan-history-entry:nth-child(even) {
-  background-color: #f8f9fa;
-}
-
-.scan-history-table tr.scan-history-entry {
+.scan-history-table tr.scan-history-entry,
+.chat-history-table tr.chat-history-entry {
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.18s ease;
 }
 
-.scan-history-table tr.scan-history-entry:hover {
-  background-color: #e9ecef;
+.scan-history-table tr.scan-history-entry:hover,
+.chat-history-table tr.chat-history-entry:hover {
+  background-color: rgba(var(--overlay-rgb), 0.04);
 }
 
-.scan-history-dropdown .scan-history-table td:nth-child(1) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.scan-history-dropdown .scan-history-table td:nth-child(2) {
+.scan-history-dropdown .scan-history-table td:nth-child(1),
+.scan-history-dropdown .scan-history-table td:nth-child(2),
+.chat-history-dropdown .chat-history-table td:nth-child(1),
+.chat-history-dropdown .chat-history-table td:nth-child(2) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -361,198 +518,172 @@
 
 .scan-history-table th:nth-child(1),
 .scan-history-table td:nth-child(1) {
-  width: 40%;
-  min-width: 80px;
+  width: 44%;
 }
 
 .scan-history-table th:nth-child(2),
 .scan-history-table td:nth-child(2) {
   width: 20%;
-  min-width: 60px;
 }
 
 .scan-history-table th:nth-child(3),
 .scan-history-table td:nth-child(3) {
-  width: 40%;
-  min-width: 80px;
-}
-
-.scan-history-empty {
-  padding: 16px;
-  text-align: center;
-  color: #888;
-  font-style: italic;
-}
-
-.scan-clear-history-button {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  padding: 8px 16px;
-  background-color: #ff4444;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.scan-clear-history-button:hover {
-  background-color: #cc0000;
-  transform: translateY(-2px);
-}
-
-.scan-clear-history-button:active {
-  transform: translateY(0);
-}
-
-.scan-history-table td.scan-history-cell-green {
-  color: #28a745;
-}
-
-.scan-history-table td.scan-history-cell-red {
-  color: #dc3545;
-}
-
-.scan-history-table td.scan-history-cell-default {
-  color: #555;
-}
-
-.chat-history-dropdown {
-  position: absolute;
-  top: 50px;
-  bottom: 50px;
-  width: 100%;
-  max-width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: #fff;
-  border: none;
-  border-radius: 0;
-  scrollbar-width: thin;
-  scrollbar-color: #c0bec7 transparent;
-  z-index: 12;
-  box-sizing: border-box;
-}
-
-.chat-history-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-  table-layout: auto;
-}
-
-.chat-history-table th {
-  padding: 12px 8px;
-  text-align: left;
-  border: none;
-  background-color: #f8f9fa;
-  font-weight: 600;
-  color: #333;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.05rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chat-history-table td {
-  padding: 12px 8px;
-  text-align: left;
-  border: none;
-  color: #555;
-}
-
-.chat-history-table tr.chat-history-entry:nth-child(even) {
-  background-color: #f8f9fa;
-}
-
-.chat-history-table tr.chat-history-entry {
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.chat-history-table tr.chat-history-entry:hover {
-  background-color: #e9ecef;
-}
-
-.chat-history-dropdown .chat-history-table td:nth-child(2) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chat-history-dropdown .chat-history-table td:nth-child(1) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 36%;
 }
 
 .chat-history-table th:nth-child(1),
 .chat-history-table td:nth-child(1) {
-  width: 30%;
-  min-width: 80px;
+  width: 70%;
 }
 
 .chat-history-table th:nth-child(2),
 .chat-history-table td:nth-child(2) {
-  width: 70%;
-  min-width: 120px;
+  width: 30%;
 }
 
-.chat-history-empty {
-  padding: 16px;
+/* Empty state — centered icon + line, fills the list area. */
+.history-empty {
+  height: 100%;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--text-faint);
   text-align: center;
-  color: #888;
-  font-style: italic;
 }
 
-.chat-clear-history-button {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  padding: 8px 16px;
-  background-color: #ff4444;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 14px;
-  font-weight: 500;
+.history-empty .material-symbols-rounded {
+  font-size: 30px;
+  opacity: 0.55;
+}
+
+.history-empty p {
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* Verdict pills — reuse the app's badge styling so history matches the
+   status badges on the scan-results page. */
+.history-pill {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  border: 1px solid transparent;
+}
+
+.history-pill.pill-green {
+  background: var(--safe-soft);
+  color: var(--safe);
+  border-color: rgba(47, 224, 176, 0.3);
+}
+
+.history-pill.pill-red {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: rgba(255, 110, 117, 0.32);
+}
+
+.history-pill.pill-default {
+  background: var(--surface-3);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+/* Footer action buttons (Clear / confirm). */
+.history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
   user-select: none;
+  border: 1px solid transparent;
 }
 
-.chat-clear-history-button:hover {
-  background-color: #cc0000;
-  transform: translateY(-2px);
+.history-btn .material-symbols-rounded {
+  font-size: 16px;
 }
 
-.chat-clear-history-button:active {
-  transform: translateY(0);
+/* Idle "Clear" — muted, restrained; only commits to red on the confirm step. */
+.history-btn-clear {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.history-btn-clear:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: rgba(255, 110, 117, 0.35);
+}
+
+.history-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.history-confirm-text {
+  margin-right: auto;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.history-btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.history-btn-ghost:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.history-btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.history-btn-danger:hover {
+  background: #ff8088;
+  border-color: #ff8088;
 }
 
 .header-buttons .material-symbols-rounded {
-  font-size: 20px; 
+  font-size: 20px;
 }
 
 .typing-animation {
   display: inline-flex;
-  gap: 2px;
+  gap: 3px;
   align-items: center;
 }
 
 .typing-dot {
-  width: 4px;
-  height: 4px;
-  background: #000;
+  width: 5px;
+  height: 5px;
+  background: var(--text-muted);
   border-radius: 50%;
-  opacity: 0.3;
+  opacity: 0.4;
   animation: typingAnimation 1.4s infinite;
 }
 
@@ -566,7 +697,7 @@
 
 @keyframes typingAnimation {
   0%, 100% {
-    opacity: 0.3;
+    opacity: 0.4;
     transform: scale(1);
   }
   50% {
@@ -581,10 +712,10 @@
     bottom: 20px;
     right: 20px;
   }
-  
+
   .chatbot-popup {
     width: 360px;
-    height: 450px;
+    height: 460px;
     right: 20px;
     bottom: 90px;
   }
@@ -594,7 +725,7 @@
   .container.show-chatbot #chatbot-toggler {
     display: none;
   }
-  
+
   #chatbot-toggler {
     bottom: 20px;
     right: 20px;
@@ -602,7 +733,7 @@
     width: 56px;
     z-index: 1000;
   }
-  
+
   .chatbot-popup {
     position: fixed;
     top: 0;
@@ -612,28 +743,31 @@
     width: 100vw;
     height: 100vh;
     height: 100dvh;
+    /* Fullscreen on mobile: sit above the sticky nav (z-index 50) and the
+       toggler (z-index 1000) so the toolbar is covered, not overlapping. */
+    z-index: 1001;
+    border: none;
     border-radius: 0;
     transform-origin: center;
-    background: linear-gradient(to top, rgba(195, 206, 238, 0.5), rgba(225, 225, 225, 0.5), rgba(195, 206, 238, 0.5)), url(https://static.opswat.com/assets/images/ozzy-bg.webp);
-    background-size: cover;
-    background-position: center;
+    background:
+      radial-gradient(800px 500px at 88% -8%, rgba(29, 107, 252, 0.10), transparent 60%),
+      linear-gradient(180deg, var(--surface-1), var(--bg-2));
     background-attachment: fixed;
   }
-  
+
   .container.show-chatbot .chatbot-popup {
     transform: scale(1);
   }
-  
+
   .chatbot-popup .chat-header {
     padding: 8px 12px;
-    border-bottom: 1px solid #e0e0e0;
-    background: #ffffff;
+    border-bottom: 1px solid var(--border);
   }
-  
+
   .chat-header .inner-header {
     padding: 8px;
   }
-  
+
   .chat-body {
     height: calc(100vh - 120px);
     height: calc(100dvh - 120px);
@@ -641,83 +775,83 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
   .chat-body .message .message-text {
     max-width: 85%;
     font-size: 1rem;
     padding: 10px 12px;
   }
-  
+
   .chat-footer {
     padding: 12px 16px;
-    background: #ffffff;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid var(--border);
   }
-  
+
   .chat-footer .chat-form {
-    height: 40px;
+    height: 42px;
   }
-  
+
   .chat-form .message-input {
-    height: 40px;
+    height: 42px;
     font-size: 16px;
-    padding: 0 12px;
+    padding: 0 14px;
   }
-  
+
   .chat-form #send-message {
     height: 32px;
     width: 32px;
     margin-right: 6px;
   }
-  
+
   .scan-history-dropdown,
   .chat-history-dropdown {
     top: 60px;
     bottom: 60px;
-    background: #ffffff;
   }
-  
+
   .scan-history-table,
   .chat-history-table {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
-  
+
   .scan-history-table th,
   .chat-history-table th {
     padding: 12px 10px;
-    font-size: 0.9rem;
+    font-size: 0.7rem;
   }
-  
+
   .scan-history-table td,
   .chat-history-table td {
     padding: 12px 10px;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
-  
-  .scan-clear-history-button,
-  .chat-clear-history-button {
-    bottom: 15px;
-    left: 15px;
-    padding: 10px 18px;
+
+  .history-panel-footer {
+    padding: 10px 14px;
   }
-  
+
+  .history-btn {
+    padding: 9px 14px;
+    font-size: 0.85rem;
+  }
+
   .chat-header .inner-header:hover {
     background: transparent;
   }
-  
+
   .chat-header button:hover {
     background: none;
-    color: #2f3b51;
+    color: var(--text-muted);
   }
-  
+
   .header-buttons button:hover svg {
-    fill: #2f3b51;
+    fill: var(--text-muted);
   }
-  
+
   #chatbot-toggler.has-hover:hover {
-    background: #254bbd;
+    background: var(--accent);
     transform: none;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-accent);
   }
 }
 
@@ -725,27 +859,27 @@
   .chat-body {
     padding: 12px;
   }
-  
+
   .chat-body .message .message-text {
     font-size: 0.95rem;
     padding: 8px 10px;
   }
-  
+
   .header-info .logo-text {
     font-size: 1.1rem;
   }
-  
+
   .scan-history-table,
   .chat-history-table {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
-  
+
   .scan-history-table th,
   .chat-history-table th {
     padding: 10px 8px;
-    font-size: 0.85rem;
+    font-size: 0.65rem;
   }
-  
+
   .scan-history-table td,
   .chat-history-table td {
     padding: 10px 8px;
@@ -758,15 +892,15 @@
     height: calc(100vh - 100px);
     height: calc(100dvh - 100px);
   }
-  
+
   .chatbot-popup .chat-header {
     padding: 6px 12px;
   }
-  
+
   .chat-footer {
     padding: 8px 16px;
   }
-  
+
   .scan-history-dropdown,
   .chat-history-dropdown {
     top: 50px;
@@ -781,13 +915,13 @@
       height: 100vh;
       height: -webkit-fill-available;
     }
-    
+
     .chat-body {
       height: calc(100vh - 120px);
       height: calc(-webkit-fill-available - 120px);
     }
   }
-  
+
   @media (max-width: 767px) and (orientation: landscape) {
     .chat-body {
       height: calc(100vh - 100px);
@@ -802,7 +936,7 @@
     .chatbot-popup .chat-header {
       padding-top: max(8px, env(safe-area-inset-top));
     }
-    
+
     .chat-footer {
       padding-bottom: max(12px, env(safe-area-inset-bottom));
     }
@@ -816,14 +950,14 @@
     min-height: 44px;
     min-width: 44px;
   }
-  
+
   .chat-form #send-message {
     min-height: 32px;
     min-width: 32px;
     height: 32px;
     width: 32px;
   }
-  
+
   #chatbot-toggler {
     min-height: 56px;
     min-width: 56px;
@@ -833,15 +967,15 @@
 
 @media (prefers-contrast: high) {
   .chatbot-popup {
-    border: 2px solid #000;
+    border: 2px solid var(--text);
   }
-  
+
   .chat-header {
-    border-bottom: 2px solid #000;
+    border-bottom: 2px solid var(--border-strong);
   }
-  
+
   .chat-footer {
-    border-top: 2px solid #000;
+    border-top: 2px solid var(--border-strong);
   }
 }
 
@@ -853,11 +987,11 @@
     transition: none;
     animation: none;
   }
-  
+
   .container.show-chatbot #chatbot-toggler {
     transform: none;
   }
-  
+
   .container.show-chatbot .chatbot-popup {
     transform: none;
   }

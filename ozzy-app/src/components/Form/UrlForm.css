@@ -1,9 +1,10 @@
-/* UrlForm.css */
+/* UrlForm.css — scan entry point. Uses the shared design tokens from
+   index.css so it matches the rest of the security-console UI. */
 .form-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 80px;
+  margin-top: 3.5rem;
   width: 100%;
   position: relative;
 }
@@ -15,7 +16,7 @@
   }
 }
 
-/* On desktop, reduce opacity and move form elements to prevent overlap */
+/* On desktop, dim and shift the form so it doesn't fight the chatbot panel */
 @media (min-width: 768px) {
   .form-wrapper.chatbot-open {
     opacity: 0.3;
@@ -24,558 +25,430 @@
     transition: opacity 0.3s ease, transform 0.3s ease;
     z-index: 1;
   }
-  
-  .form-wrapper.chatbot-open .scan-buttons-container {
-    z-index: 1;
-  }
-  
-  .form-wrapper.chatbot-open .url-form {
-    z-index: 1;
-  }
 }
 
-.description-text {
-  color: white;
+.hero {
   text-align: center;
-  max-width: 600px;
-  margin-bottom: 180px;
+  max-width: 760px;
+  margin-bottom: 2.5rem;
   padding: 0 20px;
 }
 
-.description-text p {
-  font-size: 0.85rem;
-  line-height: 1.6;
-  margin: 0;
-  color: white;
+.hero-title {
+  font-size: 2.4rem;
+  line-height: 1.18;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0 0 1rem 0;
+}
+
+.hero-sub {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  margin: 0 auto;
+  max-width: 600px;
+  color: var(--text-muted);
 }
 
 .learn-more-link {
-  color: #60a5fa;
+  color: var(--accent-hover);
   cursor: pointer;
-  transition: color 0.2s ease;
+  font-weight: 600;
+  transition: color 0.18s ease;
 }
 
 .learn-more-link:hover {
-  color: #93c5fd;
+  color: var(--accent);
+  text-decoration: underline;
 }
 
-/* Scan Buttons Container */
+/* Tabs + card grouped so the tabs sit directly above the panel */
+.scan-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 640px;
+}
+
 .scan-buttons-container {
   position: relative;
   display: flex;
   justify-content: center;
-  z-index: 10;
-  margin-top: -140px;
+  z-index: 2;
+  margin-bottom: -22px; /* overlap the card's top edge */
 }
 
 .scan-buttons-group {
   display: flex;
   flex-direction: row;
-  background: #0A0F1E;
-  border: 1px solid rgba(96, 165, 250, 0.3);
-  border-radius: 12px;
-  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px;
   gap: 4px;
-  width: fit-content;
+  box-shadow: var(--shadow-md);
 }
 
 .scan-tab-button {
   background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
-  font-size: 0.875rem;
-  width: 155px;
-  padding: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.55rem 1.1rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s ease;
+  transition: color 0.18s ease, background 0.18s ease;
   position: relative;
 }
 
 .scan-tab-button:hover {
-  color: white;
-  background: rgba(96, 165, 250, 0.1);
+  color: var(--text);
+  background: var(--accent-soft);
 }
 
 .scan-tab-button.active {
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-  color: white;
+  background: var(--accent);
+  color: #fff;
 }
 
 .scan-tab-button .icon-placeholder {
-  width: 16px;
-  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  font-size: 14px;
 }
 
-.scan-tab-button.active .icon-placeholder {
-  background: rgba(255, 255, 255, 0.2);
+/* The scan panel itself */
+.scan-card {
+  width: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  padding: 3rem 2rem 2.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.scan-card-badge {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border: 1px solid rgba(29, 107, 252, 0.3);
+  box-shadow: 0 0 0 8px rgba(29, 107, 252, 0.05);
+  margin-bottom: 1.25rem;
 }
 
 .trust-no-file-text {
-  color: white;
+  color: var(--text);
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
-  margin-top: 39px;
-  margin-bottom: 39px;
-  letter-spacing: 0.5px;
+  letter-spacing: -0.01em;
+  margin-bottom: 1.5rem;
 }
 
 .url-form {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0;
-    user-select: none;
-    position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  max-width: 460px;
+  user-select: none;
+}
+
+.input-container {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.url-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 48px 0 16px;
+  font-size: 0.92rem;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.url-input::placeholder {
+  color: var(--text-faint);
+}
+
+.url-input:focus {
+  border-color: var(--accent);
+  background: var(--surface-1);
+}
+
+.input-container:focus-within {
+  z-index: 1;
+}
+
+.file-label {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  transition: color 0.18s ease;
+}
+
+.file-label:hover {
+  color: var(--accent-hover);
+}
+
+.file-input {
+  display: none;
+}
+
+.attach-icon {
+  font-size: 20px;
+  transform: rotate(45deg);
+}
+
+.submit-button {
+  background: linear-gradient(145deg, var(--accent), var(--accent-strong));
+  color: #fff;
+  font-weight: 600;
+  padding: 0 1.4rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  border: none;
+  flex-shrink: 0;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  box-shadow: var(--shadow-accent);
+}
+
+.submit-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.scan-hint {
+  margin-top: 1.1rem;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* Scanning state */
+.url-form.scanning {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.url-input:disabled {
+  background: var(--surface-1);
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.submit-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.file-label:has(.file-input:disabled) {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 16, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 45%),
+    var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  max-width: 640px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 2.5rem;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.modal-close:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.modal-content h2 {
+  color: var(--text);
+  font-size: 1.5rem;
+  margin: 0 0 1.25rem 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.modal-body {
+  color: var(--text-muted);
+}
+
+.modal-body p {
+  margin: 0 0 0.9rem 0;
+  line-height: 1.65;
+  font-size: 0.95rem;
+}
+
+.modal-body strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.modal-footer-text {
+  text-align: center;
+  margin-top: 1.25rem !important;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-wrapper {
+    margin-top: 2rem;
+    padding: 0 16px;
   }
 
-  .url-form::before {
-    content: '';
-    position: absolute;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    background: transparent;
-    padding: 16px 20px;
-    pointer-events: none;
-    width: 600px;
-    height: 200px;
-    left: 50%;
-    bottom: -60px; 
-    transform: translateX(-50%);
-    z-index: 0;
+  .hero {
+    margin-bottom: 2rem;
+    padding: 0;
+    max-width: 100%;
   }
-  
-  .input-container {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
+
+  .hero-title {
+    font-size: 1.7rem;
   }
-  
+
+  .hero-sub {
+    font-size: 0.9rem;
+  }
+
+  .scan-tab-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.78rem;
+  }
+
+  .scan-card {
+    padding: 2.5rem 1.25rem 1.75rem;
+  }
+
+  .trust-no-file-text {
+    font-size: 1.35rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 1.4rem;
+  }
+
+  .scan-buttons-group {
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .scan-tab-button {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.72rem;
+    gap: 5px;
+  }
+
+  .trust-no-file-text {
+    font-size: 1.2rem;
+  }
+
   .url-input {
-    width: 100%;
-    padding: 10px 60px 10px 14px;
-    font-size: 0.9rem;
-    border: 1px solid #ccc;
-    border-radius: 8px 0 0 8px;
-    outline: none;
-    transition: border 0.2s ease, box-shadow 0.2s ease;
+    font-size: 0.85rem;
   }
-  
-  .url-input:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
-  }
-  
-  .file-label {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: pointer;
-    color: #2563eb;
-    transition: color 0.2s ease;
-  }
-  
-  .file-label:hover {
-    color: #1e40af;
-  }
-  
-  .file-input {
-    display: none;
-  }
-  
-  .attach-icon {
-    font-size: 20px;
-    transform: rotate(45deg);
-  }
-  
+
   .submit-button {
-    background-color: #2563eb;
-    color: white;
-    font-weight: 500;
-    padding: 10px 18px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    border-radius: 0 8px 8px 0;
-    border: none;
-    transition: background-color 0.2s ease;
-  }
-  
-  .submit-button:hover {
-    background-color: #1e40af;
-  }
-  
-  .submit-button:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5);
-  }
-
-  /* Scanning state styles */
-  .url-form.scanning {
-    opacity: 0.7;
-    pointer-events: none;
-  }
-
-  .url-input:disabled {
-    background-color: #f5f5f5;
-    color: #666;
-    cursor: not-allowed;
-  }
-
-  .submit-button:disabled {
-    background-color: #9ca3af;
-    cursor: not-allowed;
-    color: white;
-  }
-
-  .file-label:has(.file-input:disabled) {
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-
-  /* Modal Styles */
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 20px;
+    padding: 0 1rem;
+    font-size: 0.85rem;
   }
 
   .modal-content {
-    background: #141e2f;
-    border-radius: 12px;
-    max-width: 700px;
-    width: 100%;
-    max-height: 80vh;
-    overflow-y: auto;
-    padding: 40px;
-    position: relative;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  }
-
-  .modal-close {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: none;
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: white;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-  }
-
-  .modal-close:hover {
-    background: #f5f5f5;
-    color: #333;
+    padding: 1.75rem 1.25rem;
   }
 
   .modal-content h2 {
-    color: white;
-    font-size: 1.75rem;
-    margin: 0 0 20px 0;
-    font-weight: 700;
-  }
-
-  .modal-body {
-    color: white;
+    font-size: 1.25rem;
   }
 
   .modal-body p {
-    margin: 0 0 15px 0;
-    line-height: 1.6;
-    font-size: 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .scan-tab-button .icon-placeholder {
+    display: none;
   }
 
-  .modal-body p:last-child {
-    margin-bottom: 0;
+  .scan-tab-button {
+    padding: 0.5rem 0.5rem;
+    font-size: 0.7rem;
   }
-
-  .modal-footer-text {
-    text-align: center;
-    margin-top: 20px !important;
-    padding-top: 20px;
-    border-top: 1px solid #e5e5e5;
-  }
-  
-  /* Media Queries for Responsive Design */
-  @media (max-width: 768px) {
-    .form-wrapper {
-      margin-top: 30px;
-      padding: 0 16px;
-    }
-
-    .description-text {
-      margin-bottom: 80px;
-      padding: 0;
-      max-width: 100%;
-    }
-
-    .description-text p {
-      font-size: 0.9rem;
-      line-height: 1.5;
-    }
-
-    .scan-buttons-container {
-      margin-top: -50px;
-    }
-
-    .scan-buttons-group {
-      flex-direction: row;
-      width: auto;
-      padding: 6px;
-      max-width: 100%;
-      flex-wrap: nowrap;
-    }
-
-    .scan-tab-button {
-      width: 100px;
-      padding: 12px 8px;
-      font-size: 0.75rem;
-      justify-content: center;
-    }
-
-    .scan-tab-button .icon-placeholder {
-      width: 14px;
-      height: 14px;
-      font-size: 13px;
-    }
-
-    .trust-no-file-text {
-      font-size: 1.3rem;
-      margin: 35px 0 30px 0;
-    }
-
-    .url-form {
-      padding: 0;
-      margin: 0 auto;
-      max-width: 320px;
-    }
-
-    .url-form::before {
-      width: 350px;
-      height: 160px;
-      bottom: -40px;
-    }
-  
-    .input-container {
-      max-width: 100%;
-    }
-  
-    .url-input {
-      font-size: 0.85rem;
-      padding: 12px 50px 12px 16px;
-    }
-  
-    .submit-button {
-      font-size: 0.85rem;
-      padding: 12px 18px;
-    }
-  
-    .file-label {
-      right: 12px;
-    }
-  
-    .attach-icon {
-      font-size: 18px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .form-wrapper {
-      margin-top: 20px;
-      padding: 0 12px;
-    }
-
-    .description-text {
-      margin-bottom: 60px;
-      padding: 0;
-    }
-
-    .description-text p {
-      font-size: 0.85rem;
-      line-height: 1.4;
-    }
-
-    .scan-buttons-container {
-      margin-top: -30px;
-    }
-
-    .scan-buttons-group {
-      width: auto;
-      padding: 4px;
-      max-width: 95%;
-    }
-
-    .scan-tab-button {
-      width: 90px;
-      padding: 10px 6px;
-      font-size: 0.7rem;
-    }
-
-    .scan-tab-button .icon-placeholder {
-      width: 12px;
-      height: 12px;
-      font-size: 11px;
-    }
-
-    .trust-no-file-text {
-      font-size: 1.1rem;
-      margin: 30px 0 25px 0;
-    }
-
-    .url-form {
-      padding: 0;
-      margin: 0 auto;
-      max-width: 280px;
-    }
-
-    .url-form::before {
-      width: 300px;
-      height: 140px;
-      bottom: -35px;
-      border-width: 1.5px;
-    }
-  
-    .url-input {
-      font-size: 0.8rem;
-      padding: 10px 45px 10px 14px;
-      border-radius: 8px 0 0 8px;
-    }
-  
-    .submit-button {
-      font-size: 0.8rem;
-      padding: 10px 14px;
-      border-radius: 0 8px 8px 0;
-    }
-  
-    .file-label {
-      right: 10px;
-    }
-  
-    .attach-icon {
-      font-size: 16px;
-    }
-
-    .modal-overlay {
-      padding: 12px;
-    }
-
-    .modal-content {
-      padding: 24px 16px;
-      max-height: 85vh;
-      border-radius: 8px;
-    }
-
-    .modal-close {
-      top: 10px;
-      right: 10px;
-      width: 35px;
-      height: 35px;
-      font-size: 1.5rem;
-    }
-
-    .modal-content h2 {
-      font-size: 1.25rem;
-      margin-bottom: 12px;
-    }
-
-    .modal-body p {
-      font-size: 0.9rem;
-      line-height: 1.5;
-      margin-bottom: 12px;
-    }
-  }
-
-  /* Extra small screens (iPhone SE, etc.) */
-  @media (max-width: 360px) {
-    .form-wrapper {
-      margin-top: 15px;
-      padding: 0 8px;
-    }
-
-    .description-text {
-      margin-bottom: 50px;
-    }
-
-    .description-text p {
-      font-size: 0.8rem;
-    }
-
-    .scan-buttons-container {
-      margin-top: -25px;
-    }
-
-    .scan-buttons-group {
-      width: auto;
-      padding: 3px;
-      max-width: 90%;
-    }
-
-    .scan-tab-button {
-      width: 80px;
-      padding: 8px 4px;
-      font-size: 0.65rem;
-    }
-
-    .trust-no-file-text {
-      font-size: 1rem;
-      margin: 25px 0 20px 0;
-    }
-
-    .url-form {
-      max-width: 260px;
-    }
-
-    .url-form::before {
-      width: 280px;
-      height: 120px;
-      bottom: -30px;
-    }
-
-    .url-input {
-      font-size: 0.75rem;
-      padding: 8px 40px 8px 12px;
-    }
-
-    .submit-button {
-      font-size: 0.75rem;
-      padding: 8px 12px;
-    }
-
-    .modal-content {
-      padding: 20px 12px;
-    }
-
-    .modal-content h2 {
-      font-size: 1.1rem;
-    }
-
-    .modal-body p {
-      font-size: 0.85rem;
-    }
-  }
+}
